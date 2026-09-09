@@ -171,7 +171,14 @@ def test_validation_put_down_stay_video(tmp_path):
     movenet.load()
 
     cfg = PipelineConfig(analysis_fps=15.0)
-    cfg.state_config.abandon_window = 0.5
+    cfg.event_detector_config.min_carried_frames = 3
+    cfg.event_detector_config.min_stationary_frames = 4
+    cfg.event_detector_config.min_departed_frames = 2
+    cfg.event_detector_config.confirmation_grace_frames = 2
+    cfg.event_detector_config.smoothing_window = 3
+    cfg.event_detector_config.stationary_window_frames = 3
+    cfg.event_detector_config.max_pair_age_frames = 20
+    cfg.event_detector_config.min_event_confidence = 0.65
     pipe = InferencePipeline(cfg)
 
     events = []

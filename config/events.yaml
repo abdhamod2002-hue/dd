@@ -32,6 +32,20 @@ ASSOCIATION_RADIUS_RATIO: 1.0
 # person does not walk far away.
 MIN_ABANDONMENT_FRAMES: 8
 
+# ---------------------------------------------------------------------------
+# BIN VS GROUND gate (spec: "Is the final location actually ground rather than
+# inside the bin?"). While true, a candidate is only CONFIRMED when the resting
+# object was observed at/below the ACTOR's feet line (the ground plane at the
+# actor) between release and confirmation. A release whose resting position was
+# never on the ground plane (possible bin deposit / ledge / unresolvable
+# perspective) is ambiguous -> NO_CONFIDENT_EVENT (no violation emitted).
+# The per-event status is ALWAYS recorded in details.location_status
+# (GROUND_CONFIRMED / LOCATION_AMBIGUOUS) even when this gate is false.
+# NOTE: no bin-detection source exists yet, so ambiguity = "resting position
+# never observed on the actor's ground plane".
+# ---------------------------------------------------------------------------
+REQUIRE_GROUND_CONFIRMATION: true
+
 MIN_EVENT_CONFIDENCE: 0.80
 MAX_FALLBACK_TRACKER_GAP_FRAMES: 16
 MAX_PAIR_AGE_FRAMES: 30
@@ -41,3 +55,137 @@ SMOOTHING_WINDOW: 5
 ASSOCIATION_MARGIN: 0.15
 CARRYING_ZONE_VERTICAL_START: 0.45
 CARRYING_ZONE_HORIZONTAL_MARGIN: 0.75
+
+# ---------------------------------------------------------------------------
+# Release robustness (multi-observation release, spec: never one frame).
+# The legacy release needed carried-false AND distance>=RELEASE_DISTANCE_RATIO
+# AND strictly-increasing distance on ONE tick — real throws break each
+# conjunct (put-down at the feet never reaches the distance; tracking jitter
+# breaks monotonicity; a person walking toward the camera past the dropped bag
+# makes the 2D distance DECREASE). The detector now accepts any of:
+#   1. windowed distance release (adaptive per-pair threshold + net growth)
+#   2. static-bag release (object stationary, wrist away, person walking)
+#   3. feet put-down streak (object at the feet line, hand away, sustained)
+# Criteria 2/3 are gated by an anti-furniture check (the object must have been
+# genuinely handled: it moved with the pair, or a wrist was near while carried).
+# ---------------------------------------------------------------------------
+RELEASE_WINDOW_FRAMES: 4
+FEET_RELEASE_FRAMES: 3
+STATIONARY_GRACE_FRAMES: 3
+CARRY_MOTION_NORM_PX: 8.0
+CARRY_MOTION_SYNC_RATIO: 0.4
+BAG_MOVE_NORM: 0.05
+RELEASE_DISTANCE_FLOOR: 0.15
+RELEASE_DISTANCE_ADAPTIVE_RATIO: 1.6
+
+# ---------------------------------------------------------------------------
+# Per-video auto-calibration: during the first CALIBRATION_FRAMES analysis
+# ticks the detector measures median person height + walking step and adapts
+# CARRY_MOTION_NORM_PX and DEPARTURE_MOTION_RATIO with hard clamps. A slow
+# ambling scene and a fast scene get different motion thresholds with zero
+# manual tuning.
+# ---------------------------------------------------------------------------
+AUTO_CALIBRATE: true
+CALIBRATION_FRAMES: 24
+
+# ---------------------------------------------------------------------------
+# Phase 2 — pose-based association (OFF BY DEFAULT).
+#
+# Adds a pose-derived score to the person<->bag association and BLENDS it with
+# the existing geometric score (proximity / containment / detection confidence):
+#
+#     score = (1 - blend) * legacy + blend * pose
+#
+# pose itself is a weighted mean of three cues, renormalised over whichever
+# cues are actually available for that person:
+#
+#     wrist  0.4  1/(1 + d / (0.5 * person_height)), d = nearest wrist to bag
+#     zone   0.3  1.0 if the bag centre lies inside the carrying zone, else 0.0
+#     motion 0.3  1/(1 + |person_step - bag_step| / 20px), step = per-tick move
+#
+# DEVIATION FROM THE ORIGINAL PLAN (genuine technical constraint):
+# the brief defined the carrying zone as the vertical band "between the
+# shoulders and the knees". MoveNet (inference/pose/movenet_pose.py) does not
+# expose knee or hip keypoints that survive the c<0.2 confidence gate, so the
+# band's LOWER edge cannot be placed at the knees. It is anchored on the
+# shoulder line at the top (POSE_ZONE_VERTICAL_ABOVE = 0.0) and on the
+# person's bounding-box bottom at the bottom (POSE_ZONE_VERTICAL_BELOW =
+# 0.0): the zone is exactly the band from the shoulders down to the bottom
+# of the person's bounding box, with no additional margin.
+#
+# Measurements on the 5 videos in D:\W (see PHASE2_REPORT.md):
+#   * no blend value in [0.0, 1.0] breaks any currently-confirmed event;
+#   * on the bag that produces the confirmed event, the pose score ranks the
+#     geometrically-preferred person first on 12/12 multi-person ticks;
+#   * removing the ZONE cue flips that to 0/8 -- the zone is load-bearing;
+#   * all 40 tested zone-geometry variants keep the ranking correct, so the
+#     geometry defaults below are not sensitive on this data;
+#   * added cost: +0.026 ms per analysis tick (0.025% of the ~105 ms/tick
+#     YOLO+MoveNet budget). No extra model inference: MoveNet already runs on
+#     every analysis tick.
+#
+# To adopt: set POSE_ASSOCIATION_ENABLED to true. To reject: delete the block.
+# ---------------------------------------------------------------------------
+POSE_ASSOCIATION_ENABLED: false
+POSE_SCORE_BLEND: 0.5
+POSE_WEIGHT_WRIST: 0.4
+POSE_WEIGHT_ZONE: 0.3
+POSE_WEIGHT_MOTION: 0.3
+POSE_WRIST_NORM_RATIO: 0.5
+POSE_ZONE_HORIZONTAL_MARGIN: 0.30
+POSE_ZONE_VERTICAL_ABOVE: 0.0
+POSE_ZONE_VERTICAL_BELOW: 0.0
+POSE_MOTION_NORM_PX: 20.0
+POSE_MOTION_WINDOW: 3
+
+# ---------------------------------------------------------------------------
+# Class-agnostic NOVELTY (scene-change) detection — ADDITIVE, separate source.
+#
+# Detects ANY newly-appeared static object (bag / bottle / tissue / pen) via
+# background subtraction, WITHOUT per-type training. Emits detections with
+# source="novelty" and class_name="detected_object" — it flags a SCENE CHANGE,
+# it does NOT classify waste. It is a COMPLEMENT to the HSV yellow detector,
+# never a replacement, and the HSV production path is untouched.
+#
+# A novelty object is NOT a litter-candidate class (see person_object_assoc.py),
+# so it will NOT by itself create littering events — it surfaces as a detected
+# object the reviewer can see. To make it drive the FSM, treat "detected_object"
+# as a litter candidate (future config). See NOVELTY_DETECTION_REPORT.md.
+#
+# To disable: set NOVELTY_ENABLED to false.
+# ---------------------------------------------------------------------------
+NOVELTY_ENABLED: true
+NOVELTY_BG_FRAMES: 25
+NOVELTY_PROC_WIDTH: 640
+NOVELTY_BG_MODE: warmup
+NOVELTY_CHANGE_THRESH: 25
+NOVELTY_MORPH_OPEN: 3
+NOVELTY_MORPH_CLOSE: 7
+NOVELTY_PERSON_MASK_PAD: 0.2
+NOVELTY_MIN_AREA: 600
+NOVELTY_MAX_AREA_RATIO: 0.30
+NOVELTY_MIN_ASPECT: 0.15
+NOVELTY_MAX_ASPECT: 7.0
+NOVELTY_STATIONARY_FRAMES: 8
+NOVELTY_MATCH_DISTANCE: 70.0
+NOVELTY_DECAY_FRAMES: 12
+NOVELTY_MIN_CONFIDENCE: 0.30
+NOVELTY_ASSOC_MAX_DISTANCE: 250.0
+NOVELTY_CLASS_NAME: detected_object
+
+# --- P1-5: operator-configured bin zones (static cameras) -------------------
+# A polygon (NORMALIZED x/y in [0,1], origin top-left) drawn once per camera
+# during setup. While an object rests inside its camera's zone, it provides NO
+# ground-litter evidence: with require_ground_confirmation enabled the
+# candidate is rejected as BIN_ZONE_DEPOSIT (a bin deposit, not littering).
+# camera_id is optional (omit = zone applies to every camera); 'bbox' may be
+# used instead of 'polygon' as [x1, y1, x2, y2].
+#
+# bin_zones:
+#   - camera_id: cam-01
+#     name: dumpster_left
+#     polygon: [[0.05, 0.55], [0.22, 0.52], [0.24, 0.78], [0.06, 0.80]]
+#   - camera_id: cam-02
+#     name: bin_backwall
+#     bbox: [0.60, 0.50, 0.85, 0.85]
+

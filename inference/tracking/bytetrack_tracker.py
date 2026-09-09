@@ -148,6 +148,8 @@ class BytetrackTracker:
                 centroid=td.centroid,
                 bbox=td.bbox,
                 keypoints=kp.get(ns_id) if td.is_person else None,
+                confidence=td.confidence,
+                source=getattr(td, "source", "yolo"),
             )
             if td.is_person:
                 persons.append(t)

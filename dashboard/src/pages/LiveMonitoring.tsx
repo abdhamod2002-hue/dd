@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Activity, Cpu, Gauge, Video } from "lucide-react";
+import { Activity, Cpu, Gauge, Package, User, Video } from "lucide-react";
 import { useFetch } from "../lib/useFetch";
 import { getCameras, getStatus } from "../lib/api";
 import { LiveCamera } from "../components/LiveCamera";
@@ -47,6 +47,7 @@ export function LiveMonitoring() {
               cameraName={`${cam.name} · ${cam.location}`}
               aiState={status?.live_state?.ai_state}
               entities={status?.live_state?.entities || []}
+              showOverlayBoxes={false}
             />
           ) : (
             <div className="panel flex aspect-video flex-col items-center justify-center">
@@ -56,11 +57,13 @@ export function LiveMonitoring() {
           )}
 
           {/* Live metrics strip */}
-          <div className="panel grid grid-cols-2 gap-px overflow-hidden bg-[var(--border-subtle)] sm:grid-cols-4">
+          <div className="panel grid grid-cols-2 gap-px overflow-hidden bg-[var(--border-subtle)] sm:grid-cols-3 xl:grid-cols-6">
             <MetricTile icon={Cpu} label="AI Engine" value={status?.ai_engine.status ?? "offline"} ok={status?.ai_engine.status === "online"} />
             <MetricTile icon={Video} label="Camera" value={status?.camera.status ?? "offline"} ok={status?.camera.status === "online"} />
             <MetricTile icon={Gauge} label="FPS" value={status?.processing.fps != null ? status.processing.fps.toFixed(1) : "—"} ok={status?.processing.fps != null} />
             <MetricTile icon={Activity} label="Latency" value={status?.processing.latency_ms != null ? `${status.processing.latency_ms.toFixed(0)}ms` : "—"} ok={status?.processing.latency_ms != null} />
+            <MetricTile icon={User} label="Persons" value={String((status?.live_state?.entities || []).filter((e) => e.isPerson).length)} ok={(status?.live_state?.entities || []).some((e) => e.isPerson)} />
+            <MetricTile icon={Package} label="Objects" value={String((status?.live_state?.entities || []).filter((e) => !e.isPerson).length)} ok={(status?.live_state?.entities || []).some((e) => !e.isPerson)} />
           </div>
         </div>
 

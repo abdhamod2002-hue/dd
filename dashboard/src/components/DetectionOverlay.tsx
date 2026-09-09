@@ -7,6 +7,10 @@ export interface OverlayEntity {
   bbox: { x: number; y: number; w: number; h: number }; // normalized 0..1
   confidence: number;
   isPerson: boolean;
+  source?: string;
+  state?: string | null;
+  associatedObjectId?: number | null;
+  associatedPersonId?: number | null;
 }
 
 interface Props {
@@ -25,7 +29,7 @@ interface Props {
  * pair flashes red.
  */
 export function DetectionOverlay({ entities, aiState, className }: Props) {
-  const confirmed = aiState === "LITTERING_CONFIRMED";
+  const confirmed = aiState === "VIOLATION_CONFIRMED";
   return (
     <div className={cn("pointer-events-none absolute inset-0", className)}>
       {entities.map((e) => {
@@ -48,6 +52,8 @@ export function DetectionOverlay({ entities, aiState, className }: Props) {
               style={{ background: color, color: "#0a1020" }}
             >
               {e.label} #{e.trackId} · {Math.round(e.confidence * 100)}%
+              {e.source && e.source !== "yolo" ? ` · ${e.source.toUpperCase()}` : ""}
+              {e.state ? ` · ${e.state.replace(/_/g, " ")}` : ""}
             </div>
           </div>
         );

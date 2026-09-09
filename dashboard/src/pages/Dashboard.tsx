@@ -83,6 +83,7 @@ export function Dashboard() {
               cameraName={primaryCam.name}
               aiState={status?.live_state?.ai_state}
               entities={status?.live_state?.entities || []}
+              showOverlayBoxes={false}
             />
           ) : (
             <div className="panel flex aspect-video flex-col items-center justify-center p-6 text-center">

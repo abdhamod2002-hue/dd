@@ -1,0 +1,11 @@
+strict digraph "dependency-cruiser output"{
+    rankdir="LR" splines="true" overlap="false" nodesep="0.16" ranksep="0.18" fontname="Helvetica-bold" fontsize="9" style="rounded,bold,filled" fillcolor="#ffffff" compound="true"
+    node [shape="box" style="rounded, filled" height="0.2" color="black" fillcolor="#ffffcc" fontcolor="black" fontname="Helvetica" fontsize="9"]
+    edge [arrowhead="normal" arrowsize="0.6" penwidth="2.0" color="#00000033" fontname="Helvetica" fontsize="9"]
+
+    "./App" [label=<App> tooltip="App" ]
+    subgraph "cluster_src" {label="src" "src/index.css" [label=<index.css> tooltip="index.css" URL="src/index.css" ] }
+    subgraph "cluster_src" {label="src" "src/main.tsx" [label=<main.tsx> tooltip="main.tsx" URL="src/main.tsx" fillcolor="#bbfeff"] }
+    "src/main.tsx" -> "./App"
+    "src/main.tsx" -> "src/index.css"
+}

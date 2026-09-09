@@ -18,7 +18,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, func
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database import Base
@@ -55,6 +55,12 @@ class Event(Base):
     )
     confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     status: Mapped[str] = mapped_column(String(64), nullable=False, default="confirmed")
+    analysis_job_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
+    # Phase‑C stable identifiers (event‑centric)
+    event_actor_person_track_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
+    event_actor_person_uid: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
+    event_object_track_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
+    event_object_uid: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -74,6 +80,15 @@ class Evidence(Base):
     )
     image_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     video_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    person_image_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    waste_image_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    clip_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    face_image_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    # P1-2: temporal sequence stills (carry -> release -> ground) cut from the
+    # original video at the FSM's recorded frames.
+    carry_image_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    release_image_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    ground_image_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     duration_sec: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -111,9 +126,26 @@ class VideoAnalysisJob(Base):
     events_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     persons_detected: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     objects_detected: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    report_json: Mapped[Optional[str]] = mapped_column(String(4096), nullable=True)  # JSON diagnostic report
+    report_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON diagnostic report
+    analyzed_video_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     error_message: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    # --- Persistent analysis archive fields (additive, nullable) ---
+    # analysis_id is simply `id`; exposed as a property for API/JSON clarity.
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Portable (repo-root-relative) path to the uploaded original video, so the
+    # job remains viewable inside the container after a restart — absolute
+    # host paths do not resolve under /app.
+    original_video_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    # Per-analysis artifact manifest: original/analyzed/frames/events + file
+    # sizes, written at completion time and keyed to this analysis_id.
+    manifest_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    @property
+    def analysis_id(self) -> int:
+        # Alias of the primary key; clients may key archive requests/results by
+        # analysis_id, which is stable for the lifetime of this record.
+        return self.id

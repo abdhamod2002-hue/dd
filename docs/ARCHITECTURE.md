@@ -88,6 +88,11 @@ unit-tested without a camera:
    the decision.
 5. **EvidenceManager** — assembles pre+event+post from the buffer with
    explicit post-window finalize (explains the ~3s demo latency).
+6. **LitteringEventDetector** — newer explainable state machine
+   (`littering_event_detector.py`) for carry → release → stationary ground →
+   departure evidence, explicit rejection reasons, configurable thresholds in
+   `config/events.yaml`, and CSRT fallback that cannot confirm without YOLO
+   re-confirmation.
 
 ## Scope (explicit, not a limitation)
 

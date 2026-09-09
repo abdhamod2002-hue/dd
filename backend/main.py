@@ -45,8 +45,48 @@ app.include_router(stream.router, prefix="/api")
 # --------------------------------------------------------------------------- #
 @app.on_event("startup")
 def on_startup() -> None:
-    """Create database tables on application startup."""
+    """Create database tables and recover any analysis jobs orphaned by a
+    previous process crash (e.g. a container restart with no restart policy,
+    or a killed worker thread). Such jobs are left stuck in `processing` /
+    `queued` with no worker thread, so we transparently re-run them. Because
+    the job only commits its events AFTER the frame loop finishes, re-running
+    an orphan can never duplicate persisted events.
+    """
     create_all()
+    try:
+        import logging
+        import threading
+
+        log = logging.getLogger("ai_littering.main")
+        from backend.database import SessionLocal
+        from backend import models
+        from backend.routers.analysis import _run_video_analysis_job
+
+        db = SessionLocal()
+        try:
+            orphans = (
+                db.query(models.VideoAnalysisJob)
+                .filter(models.VideoAnalysisJob.status.in_(["processing", "queued"]))
+                .all()
+            )
+        finally:
+            db.close()
+
+        for job in orphans:
+            log.warning(
+                "Startup recovery: re-launching orphaned analysis job %s (status=%s)",
+                job.id, job.status,
+            )
+            t = threading.Thread(
+                target=_run_video_analysis_job, args=(job.id,), daemon=True
+            )
+            t.start()
+    except Exception:
+        # Never let recovery break app startup.
+        import logging
+        logging.getLogger("ai_littering.main").exception(
+            "Startup analysis-job recovery failed"
+        )
 
 
 # --------------------------------------------------------------------------- #

@@ -1,9 +1,8 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16-alpine
     container_name: littering-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: litter
       POSTGRES_PASSWORD: litter
@@ -16,25 +15,63 @@ services:
       test: ["CMD-SHELL", "pg_isready -U litter -d littering"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: littering-backend
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://litter:litter@postgres:5432/littering
+      PYTHONPATH: /app
+      TFHUB_CACHE_DIR: /app/models/movenet
+      ANALYSIS_FPS: "8"
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app
-      - evidence_store:/app/evidence_store
-    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+      # Real project source + models (host) so the running image always
+      # reflects the local repo. Bind mount beats COPY for dev.
+      - ./:/app
+      # P1-1 (MASTER_REPAIR_PLAN): evidence + uploads now live at ONE
+      # authoritative, host-inspectable location: D:\HO\evidence_store and
+      # D:\HO\backend\uploaded_videos. The previous named volumes
+      # (ho_evidence_store / ho_uploaded_videos) shadowed subpaths of the /app
+      # bind mount, splitting evidence across two divergent trees. Their
+      # contents were merged into the host paths on 2026-09-09 (see
+      # validation_p0_runs/p1_1_merge_plan_*.json); the volumes still exist in
+      # Docker but are no longer referenced — prune with
+      #   docker volume rm ho_evidence_store ho_uploaded_videos
+      # only after confirming no rollback is needed.
+      - ./evidence_store:/app/evidence_store
+      - ./backend/uploaded_videos:/app/backend/uploaded_videos
+      # Real data location: D:\W -> /data/W.
+      - D:/W:/data/W:ro
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers 1
+
+  dashboard:
+    image: node:20-alpine
+    container_name: littering-dashboard
+    restart: unless-stopped
+    working_dir: /dashboard
+    depends_on:
+      - backend
+    environment:
+      VITE_API_BASE: http://backend:8000/api
+      VITE_PROXY_TARGET: http://backend:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./dashboard:/dashboard
+      - /dashboard/node_modules
+    command: sh -c "if [ ! -x node_modules/.bin/vite ]; then npm install --no-audit --no-fund; fi; npm run dev -- --host 0.0.0.0 --port 5173"
 
 volumes:
   pgdata:
-  evidence_store:
+  # P1-1: evidence_store / uploaded_videos named volumes removed — replaced by
+  # host bind mounts (see backend service volumes comment). The old volumes
+  # remain on disk until explicitly pruned.

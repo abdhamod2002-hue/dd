@@ -140,22 +140,26 @@ def main() -> int:
 
     cfg = PipelineConfig(buffer_seconds=6.0, analysis_fps=30.0,
                          pre_seconds=1.0, post_seconds=1.5)
-    cfg.state_config.hold_dwell = 0.1
-    cfg.state_config.release_dwell = 0.1
-    cfg.state_config.ground_dwell = 0.1
-    cfg.state_config.away_dwell = 0.1
-    cfg.state_config.suspicious_decay = 30.0
+    cfg.event_detector_config.min_carried_frames = 3
+    cfg.event_detector_config.min_stationary_frames = 4
+    cfg.event_detector_config.min_departed_frames = 2
+    cfg.event_detector_config.confirmation_grace_frames = 2
+    cfg.event_detector_config.smoothing_window = 3
+    cfg.event_detector_config.stationary_window_frames = 3
+    cfg.event_detector_config.max_pair_age_frames = 20
+    cfg.event_detector_config.min_event_confidence = 0.65
     cfg.assoc_config.min_persistence = 2
     cfg.assoc_config.bind_radius = 90.0
     cfg.assoc_config.frame_height = 720.0
     pipe = InferencePipeline(cfg)
 
     persons_seen, objects_seen = set(), {}
-    fsm_timeline = []
+    detector_timeline = []
     frame_idx = 0
     for pkt in src:
         tracked = detector.track(pkt.frame, persist=True)
-        persons, objects = build_tracks_real(pkt.frame, tracked, movenet, tracker, frame_idx)
+        run_pose = pipe.should_analyze(pkt.timestamp)
+        persons, objects = build_tracks_real(pkt.frame, tracked, movenet, tracker, frame_idx, run_pose=run_pose)
         for p in persons:
             persons_seen.add(p.track_id)
         for o in objects:
@@ -164,21 +168,23 @@ def main() -> int:
         for ev in evs:
             print(f"  >>> CONFIRMED at t={ev.event_timestamp:.2f}s obj={ev.object_type} "
                   f"person={ev.person_track_id} object={ev.object_track_id} conf={ev.confidence:.2f}")
-        states = {k: f.state.name for k, f in pipe._fsms.items()}
+        states = {k: mem.state.value for k, mem in pipe.event_detector._pairs.items()}
         cur = list(states.values())
-        if not fsm_timeline or fsm_timeline[-1][1] != str(cur):
-            fsm_timeline.append((round(pkt.timestamp, 2), str(cur)))
+        if not detector_timeline or detector_timeline[-1][1] != str(cur):
+            detector_timeline.append((round(pkt.timestamp, 2), str(cur)))
         frame_idx += 1
     src.release()
+    pipe.finalize()
 
     print("\n=== PROBE RESULT ===")
     print("frames processed:", frame_idx)
     print("person ids:", persons_seen)
     print("object ids:", {k: v for k, v in objects_seen.items()})
-    print("FSM timeline:")
-    for ts, st in fsm_timeline:
+    print("detector timeline:")
+    for ts, st in detector_timeline:
         print(f"  t={ts}: {st}")
     print("confirmed events:", len(pipe.events))
+    print("detector summary:", pipe.event_detector.summary())
     print("finalized artifacts:", list(pipe.finalized_artifacts.keys()))
     for eid, art in pipe.finalized_artifacts.items():
         ok_s = art.snapshot_path and os.path.getsize(art.snapshot_path) > 0

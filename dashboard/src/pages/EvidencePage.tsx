@@ -1,22 +1,27 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { FileVideo, Search, ImageOff } from "lucide-react";
+import { FileVideo, Search, ImageOff, ChevronLeft, ChevronRight } from "lucide-react";
 import { useFetch } from "../lib/useFetch";
 import { getEvents, getEvidence, evidenceFileUrl } from "../lib/api";
 import { Badge } from "../components/Badge";
 import { formatTime } from "../lib/utils";
 
+const PAGE_SIZE = 24;
+
 export function EvidencePage() {
   const [search, setSearch] = useState("");
-  const { data: eventsList } = useFetch(() => getEvents(100, 0), [], 4000);
+  const [page, setPage] = useState(0);
+  const { data: eventsList } = useFetch(() => getEvents(PAGE_SIZE, page * PAGE_SIZE), [page], 4000);
 
   const events = eventsList?.items ?? [];
+  const total = eventsList?.total ?? 0;
 
-  // Fetch evidence for each event (best-effort, sequential to avoid burst)
+  // Fetch evidence for each event on the current page (best-effort, sequential
+  // to avoid burst). P2-12: no hardcoded cap — pagination bounds the work.
   const [evidenceMap, setEvidenceMap] = useState<Record<number, string>>({});
   useFetch(async () => {
     const map: Record<number, string> = {};
-    for (const ev of events.slice(0, 30)) {
+    for (const ev of events) {
       try {
         const evList = await getEvidence(ev.id);
         if (evList.length > 0 && evList[0].image_path) {
@@ -27,7 +32,7 @@ export function EvidencePage() {
       }
     }
     setEvidenceMap(map);
-  }, [events.length]);
+  }, [eventsList]);
 
   const filtered = useMemo(() => {
     if (!search) return events;
@@ -97,6 +102,32 @@ export function EvidencePage() {
             </Link>
           );
         })}
+      </div>
+
+      {/* Pagination — P2-12: all events reachable page by page */}
+      <div className="flex items-center justify-between text-[12px] text-[var(--text-muted)]">
+        <span>
+          {total > 0 ? `${page * PAGE_SIZE + 1}–${Math.min((page + 1) * PAGE_SIZE, total)} of ${total}` : "0 events"}
+        </span>
+        <div className="flex items-center gap-2">
+          <button
+            disabled={page === 0}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border-subtle)] text-[var(--text-secondary)] disabled:opacity-40 hover:bg-[var(--bg-hover)]"
+            aria-label="Previous page"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="mono">Page {page + 1}</span>
+          <button
+            disabled={(page + 1) * PAGE_SIZE >= total}
+            onClick={() => setPage((p) => p + 1)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border-subtle)] text-[var(--text-secondary)] disabled:opacity-40 hover:bg-[var(--bg-hover)]"
+            aria-label="Next page"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
       </div>
     </div>
   );

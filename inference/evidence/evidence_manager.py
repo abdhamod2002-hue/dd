@@ -83,9 +83,16 @@ class EvidenceManager:
     by design, to assemble complete evidence.
     """
 
-    def __init__(self, store_root: str = "evidence_store") -> None:
+    def __init__(self, store_root: str = "evidence_store", face_capture=None) -> None:
         self.store_root = store_root
         os.makedirs(self.store_root, exist_ok=True)
+        # Optional face-evidence capture hook. When None (default) the live
+        # evidence path is UNCHANGED. The video-analysis evidence package
+        # (inference/visualization/evidence_package.py) performs the actual
+        # face_evidence.jpg capture. This hook lets the live pipeline opt in
+        # later by passing a FaceEvidenceCapture + feeding per-frame person
+        # boxes. Left inert by default to avoid touching the confirmed path.
+        self.face_capture = face_capture
 
     def new_event_id(self) -> str:
         return uuid.uuid4().hex[:12]
@@ -152,6 +159,16 @@ class EvidenceManager:
         if frames:
             duration = frames[-1].timestamp - frames[0].timestamp
         self._write_video(frames, artifact.video_path, req)
+        # PHASE 2: browsers cannot decode OpenCV's mp4v output (the empty
+        # evidence-video panel root cause). Re-encode to H.264; on failure
+        # the mp4v original is kept (honest degradation, never a stub).
+        try:
+            from inference.visualization.h264 import transcode_to_h264
+            transcode_to_h264(artifact.video_path)
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception(
+                "H.264 transcode failed for %s — keeping mp4v original", artifact.video_path)
         # update metadata
         self._write_metadata(
             artifact.metadata_path, artifact.event_id, req,

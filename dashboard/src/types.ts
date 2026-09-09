@@ -18,7 +18,12 @@ export interface Event {
   timestamp: string;
   confidence: number;
   status: EventStatus;
+  analysis_job_id: number | null;
   created_at: string;
+  event_actor_person_track_id?: number | null;
+  event_actor_person_uid?: number | null;
+  event_object_track_id?: number | null;
+  event_object_uid?: number | null;
 }
 
 export interface EventList {
@@ -33,6 +38,13 @@ export interface Evidence {
   event_id: number;
   image_path: string | null;
   video_path: string | null;
+  person_image_path: string | null;
+  waste_image_path: string | null;
+  clip_path: string | null;
+  face_image_path: string | null;
+  carry_image_path: string | null;
+  release_image_path: string | null;
+  ground_image_path: string | null;
   duration_sec: number | null;
   created_at: string;
 }
@@ -42,6 +54,23 @@ export interface Statistics {
   events_today: number;
   per_object_type: Record<string, number>;
   avg_confidence: number;
+}
+
+export interface AnalysisMarker {
+  label: string;
+  frame: number;
+  timestamp: number;
+  kind: "person" | "object" | "event";
+  event_id?: string;
+  person_track_id?: number | string;
+  object_track_id?: number | string;
+}
+
+export interface EventReview {
+  event: Event;
+  evidence: Evidence[];
+  job: VideoAnalysisJob | null;
+  report: any | null;
 }
 
 export interface VideoAnalysisJob {
@@ -58,9 +87,70 @@ export interface VideoAnalysisJob {
   persons_detected: number;
   objects_detected: number;
   report_json: string | null;
+  analyzed_video_path: string | null;
   error_message: string | null;
   created_at: string;
+  started_at: string | null;
   completed_at: string | null;
+  original_video_path: string | null;
+  manifest_json: string | null;
+  analysis_id: number | null;
+}
+
+/** Per-analysis artifact manifest (backend/mirrors _build_analysis_manifest). */
+export interface AnalysisManifest {
+  analysis_id: number;
+  job_id: number;
+  original_filename: string;
+  original_video: string | null;
+  analyzed_video: string | null;
+  frames_jsonl: string | null;
+  event_clips: Array<{
+    event_id: string | null;
+    evidence_dir: string | null;
+    snapshot: string | null;
+    person: string | null;
+    waste: string | null;
+    carry: string | null;
+    release: string | null;
+    ground: string | null;
+    clip: string | null;
+    face: string | null;
+  }>;
+  events: Array<{
+    event_id: string | null;
+    person_track_id: string | null;
+    bag_track_id: string | null;
+    confidence: number | null;
+    state: string | null;
+    reason: string | null;
+    frames: Record<string, number> | null;
+    timestamps: Record<string, number> | null;
+  }>;
+  timeline: Array<{ timestamp?: number; frame?: number; state?: string }>;
+  markers: AnalysisMarker[];
+  metadata: {
+    duration_sec: number | null;
+    source_fps: number | null;
+    resolution: number[] | null;
+    processed_frames: number | null;
+    persons_count: number | null;
+    objects_count: number | null;
+    detector_summary: any | null;
+    no_candidate_reason: string | null;
+    status: string;
+    error_message: string | null;
+    created_at: string | null;
+    started_at: string | null;
+    completed_at: string | null;
+  };
+  sizes_bytes: {
+    original: number | null;
+    analyzed: number | null;
+    frames_jsonl: number | null;
+    events_count: number | null;
+  };
+  final_result: "LITTERING_EVENT_CANDIDATE" | "NO_EVENT";
 }
 
 export interface VideoAnalysisJobList {

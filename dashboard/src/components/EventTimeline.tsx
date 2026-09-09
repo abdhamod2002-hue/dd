@@ -6,11 +6,12 @@ import { cn } from "../lib/utils";
  * on the live monitoring page and as a checklist on the event detail page.
  */
 export const STATE_SEQUENCE = [
-  { key: "HOLDING", label: "Object associated with person" },
-  { key: "RELEASE", label: "Object released from hand" },
-  { key: "OBJECT_ON_GROUND", label: "Object reached the ground" },
-  { key: "PERSON_AWAY", label: "Person moved away" },
-  { key: "LITTERING_CONFIRMED", label: "No re-grab — littering confirmed" },
+  { key: "BAG_NEAR_PERSON", label: "Object associated with person" },
+  { key: "BAG_CARRIED", label: "Object carried by person" },
+  { key: "BAG_RELEASED", label: "Object released from hand" },
+  { key: "BAG_ON_GROUND", label: "Object reached the ground" },
+  { key: "PERSON_DEPARTED", label: "Person moved away" },
+  { key: "VIOLATION_CONFIRMED", label: "No re-grab — littering candidate confirmed" },
 ] as const;
 
 interface Props {

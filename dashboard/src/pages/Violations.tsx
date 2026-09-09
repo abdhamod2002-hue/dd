@@ -50,7 +50,7 @@ export function Violations() {
       <div>
         <h1 className="text-xl font-bold text-[var(--text-primary)]">Violations</h1>
         <p className="mt-0.5 text-[13px] text-[var(--text-secondary)]">
-          Littering event management & review
+          Littering event management & review. Confirmed events are assistive candidates backed by temporal evidence; human review is required.
         </p>
       </div>
 

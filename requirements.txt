@@ -28,3 +28,4 @@ pytest-cov>=4.1.0
 
 # --- Dev / lint ---
 ruff>=0.3.0
+supervision>=0.30.0  # Phase-1: proven open-source annotation (BoxAnnotator, LabelAnnotator, Detections)

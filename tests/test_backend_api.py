@@ -48,6 +48,7 @@ from backend import models  # noqa: F401  (registers tables on Base.metadata)
 from backend.database import Base, get_db
 from backend.main import app
 from backend.routers.evidence import EVIDENCE_STORE, _safe_resolve
+from backend.routers.events import DEFAULT_EVENT_INGEST_TOKEN, EVENT_INGEST_HEADER
 
 
 # --------------------------------------------------------------------------- #
@@ -124,7 +125,10 @@ def camera_id(client: TestClient) -> int:
 
 @pytest.fixture()
 def event_id(client: TestClient, camera_id: int) -> int:
-    """Create an event referencing the camera and return its id."""
+    """Create an event referencing the camera and return its id.
+
+    P0-3: POST /api/events is internal-only and requires the shared ingest
+    token header, exactly as the live-camera pipeline sends it."""
     resp = client.post(
         "/api/events",
         json={
@@ -135,6 +139,7 @@ def event_id(client: TestClient, camera_id: int) -> int:
             "object_track_id": "o-7",
             "status": "confirmed",
         },
+        headers={EVENT_INGEST_HEADER: DEFAULT_EVENT_INGEST_TOKEN},
     )
     assert resp.status_code == 201, resp.text
     return resp.json()["id"]
@@ -191,6 +196,7 @@ def test_create_event(client: TestClient, camera_id: int):
             "object_type": "can",
             "confidence": 0.75,
         },
+        headers={EVENT_INGEST_HEADER: DEFAULT_EVENT_INGEST_TOKEN},
     )
     assert resp.status_code == 201, resp.text
     body = resp.json()
@@ -205,8 +211,118 @@ def test_create_event_bad_camera(client: TestClient):
     resp = client.post(
         "/api/events",
         json={"camera_id": 777777, "object_type": "can", "confidence": 0.1},
+        headers={EVENT_INGEST_HEADER: DEFAULT_EVENT_INGEST_TOKEN},
     )
     assert resp.status_code == 400
+
+
+# --------------------------------------------------------------------------- #
+# P0-3 — provenance check on POST /api/events (MASTER_REPAIR_PLAN)
+# --------------------------------------------------------------------------- #
+def test_create_event_unauthenticated_rejected(client: TestClient, camera_id: int):
+    """A request WITHOUT the internal ingest token must never create a
+    confirmed event — 401, and no Event row may appear."""
+    resp = client.post(
+        "/api/events",
+        json={"camera_id": camera_id, "object_type": "can", "confidence": 0.9},
+    )
+    assert resp.status_code == 401, resp.text
+    assert resp.json()["detail"] == "Missing or invalid internal ingest token"
+
+
+def test_create_event_wrong_token_rejected(client: TestClient, camera_id: int):
+    """A wrong/forged token is also rejected (constant-time compare)."""
+    resp = client.post(
+        "/api/events",
+        json={"camera_id": camera_id, "object_type": "can", "confidence": 0.9},
+        headers={EVENT_INGEST_HEADER: "forged-token"},
+    )
+    assert resp.status_code == 401, resp.text
+
+
+def test_create_event_token_env_override(monkeypatch, client: TestClient, camera_id: int):
+    """Setting EVENT_INGEST_TOKEN replaces the default on the server side:
+    the new token is accepted and the old default is rejected."""
+    monkeypatch.setenv("EVENT_INGEST_TOKEN", "rotated-secret-123")
+    ok = client.post(
+        "/api/events",
+        json={"camera_id": camera_id, "object_type": "can", "confidence": 0.9},
+        headers={EVENT_INGEST_HEADER: "rotated-secret-123"},
+    )
+    assert ok.status_code == 201, ok.text
+    stale = client.post(
+        "/api/events",
+        json={"camera_id": camera_id, "object_type": "can", "confidence": 0.9},
+        headers={EVENT_INGEST_HEADER: DEFAULT_EVENT_INGEST_TOKEN},
+    )
+    assert stale.status_code == 401
+
+
+def test_create_event_with_internal_token_persists_identity(client: TestClient, camera_id: int):
+    """Authenticated internal callers still create events, and the stable
+    actor/object identity fields round-trip (P0-1 + P0-3 together)."""
+    resp = client.post(
+        "/api/events",
+        json={
+            "camera_id": camera_id,
+            "object_type": "trash_bag",
+            "confidence": 0.9,
+            "event_actor_person_track_id": 242,
+            "event_actor_person_uid": 2,
+            "event_object_track_id": 10244,
+            "event_object_uid": 100004,
+        },
+        headers={EVENT_INGEST_HEADER: DEFAULT_EVENT_INGEST_TOKEN},
+    )
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    assert body["event_actor_person_uid"] == 2
+    assert body["event_object_uid"] == 100004
+    assert body["event_actor_person_track_id"] == 242
+    assert body["event_object_track_id"] == 10244
+
+
+# --------------------------------------------------------------------------- #
+# P1-2 — carry/release/ground sequence stills persist and are servable
+# --------------------------------------------------------------------------- #
+def test_sequence_image_paths_persist_and_are_served(client: TestClient, event_id: int):
+    """An Evidence row carrying carry/release/ground paths must expose them via
+    GET /api/evidence/{event_id} and the files must be servable through the
+    existing evidence file route (P1-2: they used to be orphaned artifacts)."""
+    from backend.routers.evidence import EVIDENCE_STORE
+    from backend import models as m
+
+    # write three real tiny JPEGs into the evidence store
+    paths = {}
+    import numpy as np
+
+    import cv2
+
+    for key in ("carry", "release", "ground"):
+        target = EVIDENCE_STORE / str(event_id)
+        target.mkdir(parents=True, exist_ok=True)
+        f = target / f"{key}.jpg"
+        cv2.imwrite(str(f), np.full((40, 60, 3), 128, dtype=np.uint8))
+        paths[f"{key}_image_path"] = f"{event_id}/{key}.jpg"
+
+    db = TestingSessionLocal()
+    try:
+        db.add(m.Evidence(event_id=event_id, image_path=f"{event_id}/snapshot.jpg", **paths))
+        db.commit()
+    finally:
+        db.close()
+
+    listing = client.get(f"/api/evidence/{event_id}")
+    assert listing.status_code == 200, listing.text
+    rows = listing.json()
+    assert rows, "no evidence rows returned"
+    body = rows[0]
+    for field in ("carry_image_path", "release_image_path", "ground_image_path"):
+        assert body[field] == paths[field], f"{field} not exposed by the API"
+    for rel in paths.values():
+        served = client.get(f"/api/evidence/file/{rel}")
+        assert served.status_code == 200, f"{rel} not servable"
+        assert len(served.content) > 0
 
 
 def test_list_events_paginated(client: TestClient, event_id: int):

@@ -83,17 +83,52 @@ def _download(url: str, dest: Path) -> bool:
         return False
 
 
-def _convert_coco(annotations: List[dict], source: str) -> int:
-    """Convert COCO-format annotations to unified YOLO labels."""
-    count = 0
+def _convert_coco(annotations: List[dict], source: str, output_dir: Path) -> int:
+    """Convert COCO-format annotations to unified YOLO labels.
+
+    Writes one ``<image_id>.txt`` file (YOLO format: ``class cx cy w h``) per
+    annotated image under ``output_dir/labels``. Returns the number of label
+    files written. This is the real conversion — previous versions only counted.
+    """
+    images = {}
+    raw = output_dir / "images"
+    labels_dir = output_dir / "labels"
+    labels_dir.mkdir(parents=True, exist_ok=True)
+    # If image dimensions are available, keep them for normalisation.
+    data_images = annotations
+    if isinstance(data_images, dict):
+        data_images = data_images.get("images", [])
+    for img in data_images:
+        images[img["id"]] = (int(img.get("width", 0)), int(img.get("height", 0)))
+
+    written = 0
+    by_image: Dict[int, List[str]] = {}
     for ann in annotations:
+        if isinstance(ann, dict) and "bbox" not in ann:
+            continue  # not an annotation entry (e.g. info block)
         cls = canonical_id(ann.get("category_name", ""), source=source)
         if cls < 0:
             continue
-        # COCO bbox is [x, y, w, h]
+        img_id = ann.get("image_id")
         x, y, w, h = ann["bbox"]
-        count += 1
-    return count
+        iw, ih = images.get(img_id, (0, 0))
+        if iw > 0 and ih > 0:
+            cx = (x + w / 2.0) / iw
+            cy = (y + h / 2.0) / ih
+            nw = w / iw
+            nh = h / ih
+        else:
+            # Fallback: assume normalized bbox (some exports already do this).
+            cx, cy, nw, nh = x + w / 2.0, y + h / 2.0, w, h
+        if not (0.0 <= cx <= 1.0 and 0.0 <= cy <= 1.0):
+            continue
+        by_image.setdefault(img_id, []).append(
+            f"{cls} {cx:.6f} {cy:.6f} {nw:.6f} {nh:.6f}"
+        )
+    for img_id, lines in by_image.items():
+        (labels_dir / f"{img_id}.txt").write_text("\n".join(lines), encoding="utf-8")
+        written += 1
+    return written
 
 
 def prepare(dataset: str, output_dir: Path) -> int:
@@ -117,8 +152,8 @@ def prepare(dataset: str, output_dir: Path) -> int:
 
     # COCO format: {images: [...], annotations: [...]}
     annotations = data.get("annotations", data.get("labels", []))
-    n = _convert_coco(annotations, info["source"])
-    print(f"[OK] {dataset}: {n} annotations → unified labels")
+    n = _convert_coco(annotations, info["source"], output_dir)
+    print(f"[OK] {dataset}: {n} label files written to {output_dir / 'labels'}")
     return n
 
 

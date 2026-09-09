@@ -12,6 +12,7 @@ import { EvidencePage } from "./pages/EvidencePage";
 import { Analytics } from "./pages/Analytics";
 import { Settings } from "./pages/Settings";
 import { EventDetail } from "./pages/EventDetail";
+import { AnalysisDetail } from "./pages/AnalysisDetail";
 
 export default function App() {
   const [mobileNav, setMobileNav] = useState(false);
@@ -51,6 +52,7 @@ export default function App() {
             <Route path="/cameras" element={<Cameras />} />
             <Route path="/live" element={<LiveMonitoring />} />
             <Route path="/analysis" element={<VideoAnalysisPage />} />
+            <Route path="/analysis/:id" element={<AnalysisDetail />} />
             <Route path="/violations" element={<Violations />} />
             <Route path="/violations/:id" element={<EventDetail />} />
             <Route path="/evidence" element={<EvidencePage />} />

@@ -1,185 +1,222 @@
+"""P1-4 known-limitation tests (MASTER_REPAIR_PLAN Section 21).
+
+The production FSM enforces ONE bag per person: a person carrying two
+objects simultaneously only ever gets a pair memory for the higher-scoring
+(primary) object; the second object is demoted before pair creation and is
+therefore structurally invisible to the event engine.
+
+These tests PIN that documented behavior:
+  * exactly one pair memory exists for a two-object actor;
+  * releasing the secondary object emits no event and does not disturb the
+    primary pair (the P1-4 acceptance scenario "P1 carries W1 + W2, releases
+    W2" is NOT supported: W2 can never become an event candidate).
+
+If a future change adds true two-object support, these tests are expected
+to be deliberately rewritten — not silently deleted.
 """
-Correctness tests from the research-backed validation audit.
 
-These tests verify whether the engine handles scenarios that the research
-literature (ETRI 2019, AIDM-Strat 2022) flags as critical:
-
-  - Multi-object: one person interacting with TWO objects simultaneously
-    (AIDM-Strat uses DeepSORT to track multiple garbage bags; our associator
-    must not silently drop the second object).
-  - Tracking failure recovery: a bottle that receives a NEW track ID
-    mid-release (ByteTrack ID switch on fast motion / occlusion). The
-    associator's rebind logic must recover the relationship or the FSM
-    will never see the release→ground sequence.
-
-These are NOT synthetic-track injection tests (those already exist in
-test_association.py / test_pipeline_integration.py). These directly
-exercise the associator's sticky-binding + rebind logic with the
-specific multi-object and ID-switch scenarios.
-"""
 from __future__ import annotations
 
-import pytest
-
-from inference.association.person_object_assoc import (
-    AssociationConfig,
-    Keypoints,
-    PersonObjectAssociator,
-    Track,
+from littering_event_detector import (
+    DetectorBag,
+    DetectorPerson,
+    EventDetectorConfig,
+    EventState,
+    LitteringEventDetector,
+    _PairInfo,
+    _PairMemory,
 )
 
 
-def _person(pid: int, cx: float, cy: float, kp: Keypoints = None) -> Track:
-    return Track(pid, "person", (cx, cy), (cx - 40, cy - 80, cx + 40, cy + 80), kp)
-
-
-def _obj(oid: int, cls: str, cx: float, cy: float, w=25, h=25) -> Track:
-    return Track(oid, cls, (cx, cy), (cx - w, cy - h, cx + w, cy + h), None)
-
-
-def _kp(lw=None, rw=None, tc=(100, 100)) -> Keypoints:
-    return Keypoints(left_wrist=lw, right_wrist=rw, torso_center=tc)
-
-
-# =========================================================================== #
-# MULTI-OBJECT: one person + two objects simultaneously
-# The audit flagged: persons_with_established may prevent a person from
-# binding a second object. This test determines whether that is a real bug.
-# =========================================================================== #
-def test_one_person_two_objects_both_associated():
-    """A person holding a bottle in one hand and a cup in the other should
-    establish associations with BOTH objects, not just the first."""
-    cfg = AssociationConfig(
-        min_persistence=2, bind_radius=60.0, frame_height=480, torso_radius=110.0,
-    )
-    assoc = PersonObjectAssociator(cfg)
-    t = 0.0
-
-    # person with both wrists near different objects
-    p = _person(1, 100, 100, _kp(lw=(120, 110), rw=(180, 110), tc=(100, 100)))
-    bottle = _obj(10001, "plastic bottle", 120, 110)
-    cup = _obj(10002, "cup", 180, 110)
-
-    # frame 1: candidate proximity (not yet established)
-    out1 = assoc.update([p], [bottle, cup], timestamp=t)
-    assert out1 == [], "first frame should not be established yet"
-
-    # frames 2–4: both should establish (persistence=2 needs 2 held frames each;
-    # the cup starts 1 frame after the bottle because it's a new binding)
-    t = 0.05
-    for _ in range(3):
-        assoc.update([p], [bottle, cup], timestamp=t)
-        t += 0.05
-    # THE QUESTION: does the associator establish BOTH pairs?
-    object_ids_in_pairs = {k[1] for k in assoc._pairs.keys()}
-    established_count = sum(1 for m in assoc._pairs.values() if m.established)
-    print(f"pairs in store: {list(assoc._pairs.keys())} established={established_count}")
-    # Document the finding honestly:
-    if established_count >= 2:
-        print("RESULT: both objects associated — multi-object WORKS")
-    elif established_count == 1:
-        print("RESULT: only ONE object established — MULTI-OBJECT BUG CONFIRMED")
-    else:
-        print(f"RESULT: {established_count} established (still accumulating persistence)")
-
-    # ASSERT: the multi-object fix should establish both
-    assert established_count >= 2, (
-        f"multi-object fix failed: only {established_count} object(s) established, "
-        f"expected 2 (bottle on wrist L + cup on wrist R)"
+def _cfg() -> EventDetectorConfig:
+    return EventDetectorConfig(
+        analysis_fps=10.0,
+        min_carried_frames=3,
+        min_stationary_frames=4,
+        min_departed_frames=2,
+        confirmation_grace_frames=2,
+        smoothing_window=3,
+        stationary_window_frames=3,
+        max_pair_age_frames=12,
+        min_event_confidence=0.65,
+        require_ground_confirmation=True,
     )
 
 
-def test_one_person_two_objects_documented_behavior():
-    """Companion test that documents the EXPECTED behavior vs the ACTUAL.
+def _person(pid, cx, cy, height=160.0, conf=0.9):
+    half_w = 40.0
+    half_h = height / 2.0
+    return DetectorPerson(
+        track_id=pid,
+        bbox=(cx - half_w, cy - half_h, cx + half_w, cy + half_h),
+        confidence=conf,
+    )
 
-    If the multi-object bug exists, this test captures it precisely so the
-    limitation is documented, not hidden.
+
+def _bag(tid, cx, cy, conf=0.9):
+    return DetectorBag(
+        track_id=tid,
+        bbox=(cx - 25, cy - 25, cx + 25, cy + 25),
+        confidence=conf,
+        class_name="plastic bottle",
+        source="yolo",
+        yolo_confirmed=True,
+    )
+
+
+FRAME_SIZE = (1280, 720)
+
+
+def _ticks(det, persons, bags, n, t0=0.0, dt=0.1):
+    events = []
+    t = t0
+    for _ in range(n):
+        events.extend(det.update(list(persons), list(bags), t, frame_size=FRAME_SIZE))
+        t += dt
+    return events, t
+
+
+def test_two_object_actor_has_exactly_one_pair_memory():
+    """P1-4 invariant: one person + two simultaneous bags => exactly ONE pair.
+
+    The higher-scoring (closer, wrist-adjacent) bag wins the primary
+    association; the second is demoted before pair creation.
     """
-    cfg = AssociationConfig(
-        min_persistence=2, bind_radius=60.0, frame_height=480, torso_radius=110.0,
+    det = LitteringEventDetector(_cfg())
+    person = _person(1, 640, 180)
+    bag_a = _bag(30001, 640, 220)   # at the wrist — strongest association
+    bag_b = _bag(30002, 720, 235)   # also near the person, weaker
+    _ticks(det, [person], [bag_a, bag_b], 6)[0]
+
+    pairs_for_person = [k for k in det._pairs if k[0] == 1]
+    assert len(pairs_for_person) == 1, (
+        "one-bag-per-person invariant violated: person 1 has pair memories "
+        f"{pairs_for_person}"
     )
-    assoc = PersonObjectAssociator(cfg)
-    p = _person(1, 100, 100, _kp(lw=(120, 110), rw=(180, 110), tc=(100, 100)))
-    bottle = _obj(10001, "plastic bottle", 120, 110)
-    cup = _obj(10002, "cup", 180, 110)
+    mem = det._pairs[pairs_for_person[0]]
+    assert mem.bag_id == 30001, "primary (wrist-adjacent) bag must win the association"
+    assert mem.state == EventState.BAG_CARRIED
 
-    assoc.update([p], [bottle, cup], timestamp=0.0)
-    for t in [0.05, 0.10, 0.15]:
-        assoc.update([p], [bottle, cup], timestamp=t)
 
-    # With the multi-object fix, a person can hold two objects (one per wrist).
-    pairs_for_person_1 = [k for k in assoc._pairs.keys() if k[0] == 1]
-    established = sum(1 for k in pairs_for_person_1 if assoc._pairs[k].established)
-    print(f"pairs for person 1: {len(pairs_for_person_1)} established={established}")
-    assert len(pairs_for_person_1) == 2, (
-        f"multi-object: expected 2 pairs, got {len(pairs_for_person_1)}"
+def test_secondary_object_release_is_invisible_to_event_engine():
+    """P1-4 scenario: actor carries W1(primary) + W2, then releases W2.
+
+    Expected (documented limitation): W2 produces NO event candidate, and
+    the W1 pair stays undisturbed in BAG_CARRIED. The FSM never sees W2's
+    release as a littering arc for this actor.
+    """
+    det = LitteringEventDetector(_cfg())
+    person = _person(1, 640, 180)
+    bag_a = _bag(30001, 640, 220)
+    bag_b = _bag(30002, 720, 235)
+
+    # Phase 1 — carry both objects.
+    _, t = _ticks(det, [person], [bag_a, bag_b], 6)
+    pairs_before = [k for k in det._pairs if k[0] == 1]
+    assert len(pairs_before) == 1
+    assert det._pairs[pairs_before[0]].state == EventState.BAG_CARRIED
+
+    # Phase 2 — W2 is put down on the ground while W1 stays in hand.
+    # W2 rests stationary well below the person (ground context) and far
+    # enough that it is no longer a carry association for this actor.
+    bag_b_ground = _bag(30002, 720, 420)
+    emitted, _ = _ticks(det, [person], [bag_a, bag_b_ground], 14, t0=t)
+
+    assert emitted == [], (
+        "the demoted secondary object's release must be invisible to the "
+        f"FSM, but events were emitted: {[ (e.person_track_id, e.reason) for e in emitted ]}"
     )
-    assert established == 2, (
-        f"multi-object: expected 2 established, got {established}"
-    )
-
-
-# =========================================================================== #
-# TRACKING FAILURE RECOVERY: bottle gets a NEW track ID mid-release
-# ByteTrack can switch IDs on fast motion / occlusion. The associator's
-# rebind logic (reassoc_window) must recover the relationship, or the FSM
-# will never see release→ground for the bottle.
-# =========================================================================== #
-def test_id_switch_mid_release_rebind():
-    """Person holds bottle (id 10001) → releases → bottle ID switches to 10005
-    mid-flight (ByteTrack fragmentation). The associator should rebind the
-    pair to the new object ID within reassoc_window so the FSM continues
-    tracking the same physical bottle."""
-    cfg = AssociationConfig(
-        min_persistence=2, bind_radius=60.0, frame_height=480,
-        reassoc_window=2.0, rebind_max_distance=150.0,
-    )
-    assoc = PersonObjectAssociator(cfg)
-    t = 0.0
-
-    # establish holding with bottle id 10001
-    p = _person(1, 100, 100, _kp(lw=(120, 110), tc=(100, 100)))
-    bottle = _obj(10001, "plastic bottle", 120, 110)
-    assoc.update([p], [bottle], timestamp=t)
-    t += 0.05
-    out = assoc.update([p], [bottle], timestamp=t)
-    assert any(o.object_id == 10001 for o in out), "bottle 10001 not established"
-    assert (1, 10001) in assoc._pairs
-
-    # release: bottle moves down, then ID switches to 10005 (ByteTrack lost it)
-    t += 0.05
-    bottle_far = _obj(10001, "plastic bottle", 120, 250)  # still id 10001, moving down
-    assoc.update([p], [bottle_far], timestamp=t)
-    t += 0.05
-    # now the bottle reappears with a NEW id 10005 (ID switch) near where 10001 was
-    bottle_new_id = _obj(10005, "plastic bottle", 125, 260)
-    out = assoc.update([p], [bottle_new_id], timestamp=t)
-
-    # THE QUESTION: did the rebind recover the relationship?
-    has_rebound = (1, 10005) in assoc._pairs
-    print(f"rebind to new id 10005: {'YES — recovery works' if has_rebound else 'NO — TRACKING FAILURE BUG'}")
-    # the rebind should migrate the memory to (1, 10005)
-    assert has_rebound, (
-        "ID-switch rebind FAILED: the pair (1,10001) vanished and was not "
-        "rebound to (1,10005). The FSM would lose the bottle mid-release."
+    # Still exactly one pair, still carrying the primary object.
+    pairs_after = [k for k in det._pairs if k[0] == 1]
+    assert len(pairs_after) == 1
+    mem = det._pairs[pairs_after[0]]
+    assert mem.bag_id == 30001
+    assert mem.state == EventState.BAG_CARRIED, (
+        f"primary pair must be undisturbed, got {mem.state}"
     )
 
 
-def test_id_switch_wrong_class_no_rebind():
-    """A bottle that switches to a 'cup' ID should NOT rebind (different class)."""
-    cfg = AssociationConfig(
-        min_persistence=2, bind_radius=60.0, frame_height=480,
-        reassoc_window=2.0, rebind_max_distance=150.0,
+def _pair_info(norm_distance=0.5, **overrides):
+    info = _PairInfo(
+        person_id=1,
+        bag_id=10001,
+        timestamp=1.0,
+        frame_index=10,
+        distance=100.0,
+        norm_distance=norm_distance,
+        person_centroid=(100.0, 100.0),
+        person_height=160.0,
+        near=False,
+        carried=False,
+        stationary=True,
+        departed=True,
+        score=0.5,
+        containment=0.0,
+        bag_confidence=0.9,
+        bag_class="trash_bag",
+        fallback=False,
+        yolo_confirmed=True,
+        bag_uid=1,
+        pose_score=None,
+        pose_components={},
+        legacy_score=0.5,
+        bag_centroid=(200.0, 200.0),
+        bag_below_feet=False,
+        near_ground_plane=True,
+        in_bin_zone=False,
+        person_moving=True,
+        moves_with_person=False,
+        wrist_near=False,
     )
-    assoc = PersonObjectAssociator(cfg)
-    p = _person(1, 100, 100, _kp(lw=(120, 110), tc=(100, 100)))
-    bottle = _obj(10001, "plastic bottle", 120, 110)
-    assoc.update([p], [bottle], timestamp=0.0)
-    assoc.update([p], [bottle], timestamp=0.05)
-    # release + ID switch to a cup (wrong class)
-    assoc.update([p], [_obj(10001, "plastic bottle", 120, 250)], timestamp=0.10)
-    cup_new = _obj(10005, "cup", 125, 260)
-    out = assoc.update([p], [cup_new], timestamp=0.15)
-    assert (1, 10005) not in assoc._pairs or all(
-        o.object_class != "cup" for o in out
-    ), "should not rebind bottle memory to a cup"
+    for k, v in overrides.items():
+        setattr(info, k, v)
+    return info
+
+
+def test_release_window_frames_is_consulted_p2_1():
+    """P2-1 wiring: the windowed distance-growth release test must be BOUNDED
+    by release_window_frames (most recent ticks only), not the full history.
+
+    History: an early rise, then a flat/slightly-falling tail. The FULL-history
+    test would keep 'growing' forever; the bounded window must not."""
+    cfg = _cfg()
+    cfg = EventDetectorConfig(**{**cfg.to_dict(), "release_window_frames": 4})
+    det = LitteringEventDetector(cfg)
+    mem = _PairMemory(person_id=1, bag_id=10001, bag_uid=1)
+    mem.carried_frames = 10
+    # Early rise (5 -> 40), then a falling/flat tail inside the recent window.
+    for d in (5.0, 40.0, 30.0, 20.0, 10.0):
+        mem.distances.append(d)
+    info = _pair_info(norm_distance=0.5)
+    # distance_increasing=False, so ONLY the windowed-growth criterion could
+    # fire; with the bounded window (last 4: 40,30,20,10) it must not.
+    assert det._release_detected(mem, info, smooth_carried=False, distance_increasing=False) is False
+    # Sanity: the same tail RISING must fire (window growth works).
+    mem.distances.clear()
+    for d in (5.0, 5.0, 5.0, 20.0, 30.0, 40.0):
+        mem.distances.append(d)
+    assert det._release_detected(mem, info, smooth_carried=False, distance_increasing=False) is True
+
+
+def test_fallback_gap_gate_p2_1_wiring():
+    """P2-1 wiring: max_fallback_tracker_gap_frames gates confirmation — a pair
+    coasting on a non-YOLO tracker longer than the cap is rejected as
+    BAG_NOT_DETECTED (design principle #4). DORMANT in production today (only
+    yolo-source bags form pairs); the gate is the safety net."""
+    cfg = EventDetectorConfig(**{**_cfg().to_dict(), "max_fallback_tracker_gap_frames": 4})
+    det = LitteringEventDetector(cfg)
+    # bag_seen_frames must be >0, otherwise _rejection_reason's earlier
+    # "never detected at all" check (line 1) short-circuits to BAG_NOT_DETECTED
+    # before the fallback-gap gate under test is ever reached, which would
+    # make every assertion below pass/fail for the wrong reason.
+    mem = _PairMemory(person_id=1, bag_id=10001, bag_uid=1, bag_seen_frames=10)
+    evidence = det._compute_evidence(mem)
+    # Gap within the cap -> no fallback rejection.
+    mem.fallback_gap_frames = 4
+    assert det._rejection_reason(mem, evidence) != "BAG_NOT_DETECTED"
+    # Gap beyond the cap -> BAG_NOT_DETECTED (before any other gate result).
+    mem.fallback_gap_frames = 5
+    assert det._rejection_reason(mem, evidence) == "BAG_NOT_DETECTED"
+    # YOLO reconfirmation resets the streak.
+    mem.fallback_gap_frames = 0
+    assert det._rejection_reason(mem, evidence) != "BAG_NOT_DETECTED"

@@ -102,4 +102,101 @@ def create_all() -> None:
     # Import here to avoid a circular import at module load time.
     from backend import models  # noqa: F401 - registers tables on Base
 
-    Base.metadata.create_all(bind=get_engine())
+    engine = get_engine()
+    Base.metadata.create_all(bind=engine)
+    _ensure_report_json_text_column(engine)
+    _ensure_analysis_job_columns(engine)
+    _ensure_event_and_evidence_columns(engine)
+
+
+def _ensure_report_json_text_column(engine) -> None:
+    """Best-effort migration for older varchar(4096) analysis reports."""
+    try:
+        from sqlalchemy import inspect, text
+
+        inspector = inspect(engine)
+        if "video_analysis_jobs" not in inspector.get_table_names():
+            return
+        dialect = engine.dialect.name
+        if dialect == "postgresql":
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE video_analysis_jobs ALTER COLUMN report_json TYPE TEXT"))
+        # SQLite does not enforce VARCHAR length, so no migration is needed.
+    except Exception:
+        # Startup must not fail because an optional convenience migration is
+        # unsupported by the current DB permissions/version.
+        return
+
+
+def _ensure_event_and_evidence_columns(engine) -> None:
+    """Best-effort migration for event-review columns added after first release, plus new event‑centric identifiers (Phase D)."""
+
+    """Best-effort migration for event-review columns added after first release."""
+    try:
+        from sqlalchemy import inspect, text
+
+        inspector = inspect(engine)
+        dialect = engine.dialect.name
+        table_names = set(inspector.get_table_names())
+
+        if "events" in table_names:
+            existing = {col["name"] for col in inspector.get_columns("events")}
+            # Ensure analysis_job_id exists (legacy column)
+            if "analysis_job_id" not in existing:
+                col_type = "INTEGER" if dialect == "postgresql" else "INTEGER"
+                with engine.begin() as conn:
+                    conn.execute(text(f"ALTER TABLE events ADD COLUMN analysis_job_id {col_type}"))
+            # New event‑centric identifiers (Phase D) - must include stable person uid
+            for col_name in ("event_actor_person_track_id", "event_actor_person_uid", "event_object_track_id", "event_object_uid"):
+                if col_name not in existing:
+                    col_type = "INTEGER" if dialect == "postgresql" else "INTEGER"
+                    with engine.begin() as conn:
+                        conn.execute(text(f"ALTER TABLE events ADD COLUMN {col_name} {col_type}"))
+
+        if "evidence" in table_names:
+            existing = {col["name"] for col in inspector.get_columns("evidence")}
+            for name in ("person_image_path", "waste_image_path", "clip_path", "face_image_path",
+                         # P1-2: temporal sequence stills
+                         "carry_image_path", "release_image_path", "ground_image_path"):
+                if name not in existing:
+                    col_type = "VARCHAR(512)" if dialect == "postgresql" else "TEXT"
+                    with engine.begin() as conn:
+                        conn.execute(text(f"ALTER TABLE evidence ADD COLUMN {name} {col_type}"))
+    except Exception:
+        return
+def _ensure_analysis_job_columns(engine) -> None:
+    """Best-effort migration for analysis-job columns added after first release."""
+    try:
+        from sqlalchemy import inspect, text
+
+        inspector = inspect(engine)
+        if "video_analysis_jobs" not in inspector.get_table_names():
+            return
+        existing = {col["name"] for col in inspector.get_columns("video_analysis_jobs")}
+        dialect = engine.dialect.name
+        if "analyzed_video_path" not in existing:
+            col_type = "VARCHAR(512)" if dialect == "postgresql" else "TEXT"
+            with engine.begin() as conn:
+                conn.execute(text(f"ALTER TABLE video_analysis_jobs ADD COLUMN analyzed_video_path {col_type}"))
+        # Persistent-analysis-archive columns (additive, idempotent).
+        # - started_at           : TIMESTAMP with timezone when processing began
+        # - original_video_path  : repo-root-relative original upload path
+        # - manifest_json        : full per-analysis artifact manifest (Text)
+        if dialect == "postgresql":
+            col_type_map = {
+                "started_at": "TIMESTAMP",
+                "original_video_path": "VARCHAR(512)",
+                "manifest_json": "TEXT",
+            }
+        else:
+            col_type_map = {
+                "started_at": "TIMESTAMP",
+                "original_video_path": "TEXT",
+                "manifest_json": "TEXT",
+            }
+        for col, col_type in col_type_map.items():
+            if col not in existing:
+                with engine.begin() as conn:
+                    conn.execute(text(f"ALTER TABLE video_analysis_jobs ADD COLUMN {col} {col_type}"))
+    except Exception:
+        return

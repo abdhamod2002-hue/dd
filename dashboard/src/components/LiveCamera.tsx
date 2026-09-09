@@ -12,6 +12,8 @@ interface Props {
   className?: string;
   /** compact mode hides the chrome (used on the main dashboard tile) */
   compact?: boolean;
+  /** set false when the MJPEG stream already contains AI overlays */
+  showOverlayBoxes?: boolean;
 }
 
 export function LiveCamera({
@@ -21,6 +23,7 @@ export function LiveCamera({
   entities = [],
   className,
   compact,
+  showOverlayBoxes = true,
 }: Props) {
   const imgRef = useRef<HTMLImageElement>(null);
   const [live, setLive] = useState(false);
@@ -79,8 +82,8 @@ export function LiveCamera({
           }}
         />
 
-        {/* detection overlays */}
-        {loaded && <DetectionOverlay entities={entities} aiState={aiState} />}
+        {/* detection overlays (optional; live stream is already annotated) */}
+        {loaded && showOverlayBoxes && <DetectionOverlay entities={entities} aiState={aiState} />}
 
         {/* loading / waiting state */}
         {!loaded && (

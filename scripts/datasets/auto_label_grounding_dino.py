@@ -118,8 +118,25 @@ def main():
                        help="text cues for Grounding DINO")
     args = ap.parse_args()
 
-    n = auto_label_video(args.video, args.output, args.cues)
-    print(f"[OK] Wrote {n} label files to {args.output}/")
+    # SCAFFOLD GUARD: the actual Grounding DINO inference call is intentionally
+    # not implemented here (it requires `pip install groundingdino` plus a model
+    # download). Running this without that implementation must NOT silently write
+    # empty labels and claim success — that would poison any training set. We
+    # therefore surface the limitation clearly and exit non-zero.
+    try:
+        n = auto_label_video(args.video, args.output, args.cues)
+    except NotImplementedError as exc:
+        print("ERROR: auto-label inference is a SCAFFOLD and is not wired to a real "
+              "Grounding DINO backend yet.", file=sys.stderr)
+        print(str(exc).strip(), file=sys.stderr)
+        print("To enable: install groundingdino, then implement _grounding_dino_predict() "
+              "and re-run. Do NOT use empty outputs as training labels.", file=sys.stderr)
+        sys.exit(2)
+
+    if n == 0:
+        print("WARNING: wrote 0 label files — review cues / detector before using as labels.", file=sys.stderr)
+    else:
+        print(f"[OK] Wrote {n} label files to {args.output}/")
     print(f"  Cue → canonical class mapping:")
     for cue in args.cues:
         cid = canonical_id(cue)

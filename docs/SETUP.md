@@ -79,6 +79,24 @@ pytest tests/ -v
 
 These test the 🔴 core contribution layers with synthetic inputs.
 
+## 8. Event detector configuration
+
+The temporal littering event detector reads tunable defaults from:
+
+```bash
+config/events.yaml
+```
+
+Use `--event-detector` with the live pipeline or evaluation script to run it in
+parallel with the existing FSM/voting pipeline:
+
+```bash
+python scripts/run_pipeline.py --source file --video clip.mp4 --event-detector
+python scripts/evaluate.py --dataset path/to/dataset --event-detector
+```
+
+Uploaded video analysis always includes detector diagnostics in the job report.
+
 ## Environment variables
 
 | Var | Default | Purpose |

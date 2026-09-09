@@ -41,13 +41,19 @@ def run_clip(path: str, pipe: InferencePipeline, detector, movenet, tracker_ns) 
     for pkt in src:
         # REAL ByteTrack path (stable ids across the clip)
         tracked = detector.track(pkt.frame, persist=True)
-        persons, objects = build_tracks_real(pkt.frame, tracked, movenet, tracker_ns, n)
+        run_pose = pipe.should_analyze(pkt.timestamp)
+        persons, objects = build_tracks_real(pkt.frame, tracked, movenet, tracker_ns, n, run_pose=run_pose)
         events = pipe.process_frame(pkt.frame, pkt.timestamp, persons, objects)
         if events and not confirmed:
             confirmed = True
             confirm_ts = pkt.timestamp
             latency = pkt.timestamp - events[0].event_timestamp
         n += 1
+    # Flush any detector state that only confirms at end-of-clip.
+    final_events = pipe.finalize()
+    if final_events and not confirmed:
+        confirmed = True
+        latency = 0.0
     elapsed = time.time() - t0
     fps = n / elapsed if elapsed > 0 else 0.0
     src.release()

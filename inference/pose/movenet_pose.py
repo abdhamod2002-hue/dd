@@ -34,10 +34,11 @@ import numpy as np  # type: ignore
 from inference.association.person_object_assoc import Keypoints
 
 # MoveNet 17-keypoint indices (Thunderbird/SinglePose)
-KP_LEFT_WRIST = 9
-KP_RIGHT_WRIST = 10
+KP_NOSE = 0
 KP_LEFT_SHOULDER = 5
 KP_RIGHT_SHOULDER = 6
+KP_LEFT_WRIST = 9
+KP_RIGHT_WRIST = 10
 
 # Persistent local cache root: <repo>/models/movenet/
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -207,9 +208,19 @@ class MovenetPose:
         rw = get(KP_RIGHT_WRIST)
         ls = get(KP_LEFT_SHOULDER)
         rs = get(KP_RIGHT_SHOULDER)
+        nose = get(KP_NOSE)
+        nose_conf = float(kps[KP_NOSE][2]) if nose is not None else 0.0
         tc = None
         if ls is not None and rs is not None:
             tc = ((ls[0] + rs[0]) / 2.0, (ls[1] + rs[1]) / 2.0)
-        kp = Keypoints(left_wrist=lw, right_wrist=rw, torso_center=tc, left_shoulder=ls, right_shoulder=rs)
+        kp = Keypoints(
+            left_wrist=lw,
+            right_wrist=rw,
+            torso_center=tc,
+            left_shoulder=ls,
+            right_shoulder=rs,
+            nose=nose,
+            nose_confidence=nose_conf,
+        )
         avg_conf = float(np.mean(kps[:, 2]))
         return PoseResult(person_index=idx, keypoints=kp, confidence=avg_conf)

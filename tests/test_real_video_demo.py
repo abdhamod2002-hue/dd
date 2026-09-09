@@ -231,11 +231,14 @@ def test_real_video_full_pipeline_scenario_a(tmp_path):
 
     # pipeline config
     cfg = PipelineConfig(buffer_seconds=6.0, analysis_fps=30.0, pre_seconds=1.0, post_seconds=1.0)
-    cfg.state_config.hold_dwell = 0.1
-    cfg.state_config.release_dwell = 0.1
-    cfg.state_config.ground_dwell = 0.1
-    cfg.state_config.away_dwell = 0.1
-    cfg.state_config.suspicious_decay = 10.0
+    cfg.event_detector_config.min_carried_frames = 3
+    cfg.event_detector_config.min_stationary_frames = 4
+    cfg.event_detector_config.min_departed_frames = 2
+    cfg.event_detector_config.confirmation_grace_frames = 2
+    cfg.event_detector_config.smoothing_window = 3
+    cfg.event_detector_config.stationary_window_frames = 3
+    cfg.event_detector_config.max_pair_age_frames = 20
+    cfg.event_detector_config.min_event_confidence = 0.65
     cfg.assoc_config.min_persistence = 2
     cfg.assoc_config.bind_radius = 80.0
     cfg.assoc_config.frame_height = frames[0].shape[0]
@@ -268,27 +271,27 @@ def test_real_video_full_pipeline_scenario_a(tmp_path):
         f"real ByteTrack did not produce a stable person id; got {person_ids_seen}"
     )
 
-    # VERIFY (4): the pipeline actually ran the FSM on the real pairs
-    # (association → FSM → voting was exercised on real detections)
-    assert len(pipe._fsms) >= 1, "no pairs were established from real detections"
-    fsm_states_seen = {fsm.state.name for fsm in pipe._fsms.values()}
-    # the FSM must have reached at least HOLDING from the real input
-    assert "HOLDING" in fsm_states_seen or "INTERACTING" in fsm_states_seen, (
-        f"FSM never reached HOLDING from real detections; states={fsm_states_seen}"
+    # VERIFY (4): the pipeline actually ran the temporal detector on the real pairs
+    # (association → detector state machine was exercised on real detections)
+    assert len(pipe.event_detector._pairs) >= 1, "no pairs were established from real detections"
+    detector_states_seen = {mem.state.value for mem in pipe.event_detector._pairs.values()}
+    # the detector must have reached at least BAG_NEAR_PERSON from the real input
+    assert detector_states_seen & {"BAG_NEAR_PERSON", "BAG_CARRIED", "BAG_RELEASED", "BAG_ON_GROUND", "PERSON_DEPARTED", "VIOLATION_CONFIRMED"}, (
+        f"detector never reached a carrying/near-person state from real detections; states={detector_states_seen}"
     )
 
-    # HONEST REPORT: a full LITTERING_CONFIRMED requires a real physical camera
+    # HONEST REPORT: a full VIOLATION_CONFIRMED requires a real physical camera
     # (consistent ByteTrack tracking through a real throw) + best.pt. This
     # composite video cannot honestly produce it. Report what we got.
     print(f"\n=== REAL VIDEO PIPELINE RESULT ===")
     print(f"frames processed: {len(frames)} (real)")
     print(f"real person IDs: {person_ids_seen}")
     print(f"real bottle IDs: {bottle_ids_seen}")
-    print(f"FSM pairs established: {len(pipe._fsms)}")
-    print(f"FSM states reached: {fsm_states_seen}")
+    print(f"detector pairs established: {len(pipe.event_detector._pairs)}")
+    print(f"detector states reached: {detector_states_seen}")
     print(f"confirmed littering events: {len(confirmed_events)}")
     if len(confirmed_events) == 0:
-        print("NOTE: no LITTERING_CONFIRMED — full confirmation requires "
+        print("NOTE: no VIOLATION_CONFIRMED — full confirmation requires "
               "a real physical camera + best.pt (HARDWARE-REQUIRED).")
     else:
         ev = confirmed_events[0]

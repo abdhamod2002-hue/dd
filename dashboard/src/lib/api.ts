@@ -1,7 +1,9 @@
 import type {
+  AnalysisManifest,
   Camera,
   Event,
   EventList,
+  EventReview,
   Evidence,
   Statistics,
   SystemStatus,
@@ -38,6 +40,9 @@ export function getEvents(limit = 50, offset = 0): Promise<EventList> {
 }
 export function getEvent(id: number): Promise<Event> {
   return apiFetch<Event>(`/events/${id}`);
+}
+export function getEventReview(id: number): Promise<EventReview> {
+  return apiFetch<EventReview>(`/events/${id}/review`);
 }
 
 /* ----------------------------- Evidence ---------------------------- */
@@ -82,4 +87,24 @@ export function getAnalysisJobs(limit = 50, offset = 0): Promise<VideoAnalysisJo
 
 export function getAnalysisJob(jobId: number): Promise<VideoAnalysisJob> {
   return apiFetch<VideoAnalysisJob>(`/analysis/jobs/${jobId}`);
+}
+
+export function getAnalysisManifest(jobId: number): Promise<AnalysisManifest> {
+  return apiFetch<AnalysisManifest>(`/analysis/jobs/${jobId}/manifest`);
+}
+
+export function getAnalysisJobEvents(jobId: number): Promise<Event[]> {
+  return apiFetch<Event[]>(`/analysis/jobs/${jobId}/events`);
+}
+
+export function analyzedVideoUrl(jobId: number): string {
+  return `${BASE_URL}/analysis/jobs/${jobId}/analyzed-video`;
+}
+
+export function originalVideoUrl(jobId: number): string {
+  return `${BASE_URL}/analysis/jobs/${jobId}/original-video`;
+}
+
+export function frameAnalysisUrl(jobId: number): string {
+  return `${BASE_URL}/analysis/jobs/${jobId}/frame-analysis`;
 }

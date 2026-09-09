@@ -20,6 +20,7 @@ full-FPS buffer, so they stay smooth even when analysis is throttled.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time
 
@@ -31,9 +32,10 @@ from inference.detection.yolo_detector import YoloDetector
 from inference.pose.movenet_pose import MovenetPose
 from inference.tracking.bytetrack_tracker import BytetrackTracker
 from inference.pipeline import InferencePipeline, PipelineConfig
+from inference.visualization import build_frame_analysis, render_analysis_frame
 
 
-def build_tracks_real(frame, tracked, movenet, tracker, frame_index):
+def build_tracks_real(frame, tracked, movenet, tracker, frame_index, run_pose: bool = True, nov=None, object_identity=None):
     """
     REAL detection→tracking→pose→Track adapter.
 
@@ -44,7 +46,8 @@ def build_tracks_real(frame, tracked, movenet, tracker, frame_index):
 
     Steps:
       1. record tracked detections into the TrackStore (history),
-      2. run MoveNet pose ONLY on person crops (lazy — biggest CPU save),
+      2. run MoveNet pose ONLY on person crops when ``run_pose`` is true
+         (the caller throttles this to the analysis tick — biggest CPU save),
       3. convert to namespaced Track objects for the association engine.
 
     This replaces the old build_tracks() which assigned fake per-frame
@@ -53,10 +56,47 @@ def build_tracks_real(frame, tracked, movenet, tracker, frame_index):
     # 1) record history
     tracker.update(tracked, frame_index)
 
-    # 2) person crops for pose (lazy: only persons, only this frame)
+    # 1b) CLASS-AGNOSTIC NOVELTY (scene-change) DETECTION — additive, separate
+    # source. Runs only when a live, enabled NoveltyDetector is supplied. Its
+    # TrackedDetection(source="novelty") outputs are appended to `tracked` so
+    # tracker.to_tracks() namespaces them into the SAME `objects` list the
+    # association engine + FSM already consume. The HSV production path is
+    # completely untouched. A novelty object is NOT a litter-candidate class,
+    # so it surfaces as a detected object without spawning false events.
+    # See NOVELTY_DETECTION_REPORT.md.
+    if nov is not None and getattr(nov.config, "enabled", False) and run_pose:
+        # Gate to the ANALYSIS tick (run_pose), NOT every source frame. Running
+        # novelty on all ~60 source fps was a 3-4x slowdown vs the HSV-only path
+        # AND diverged from the tuning validated in the harness (which calls
+        # update() once per analysis tick). The detector's warmup uses an internal
+        # buffer counter, so this cadence change is safe and restores the intended
+        # stationary_frames / decay_frames semantics (measured in analysis ticks).
+        _person_tracked = [t for t in tracked if t.is_person]
+        _person_boxes = [tuple(t.bbox) for t in _person_tracked]
+        _person_map = {int(t.track_id): tuple(t.bbox) for t in _person_tracked}
+        _nov_out = nov.update(frame, frame_index, _person_boxes, _person_map)
+        if _nov_out:
+            # Phase 3: a novelty proposal describing the SAME physical object
+            # as a same-frame detector box is redundant — the semantic
+            # detection stays authoritative. Suppressed here at append time
+            # (novelty internals untouched); same symmetric predicate as the
+            # detector dedup. Person boxes are excluded: novelty already
+            # erases person regions from its change mask.
+            from inference.detection.yolo_detector import boxes_duplicate
+            _kept_obj_boxes = [tuple(t.bbox) for t in tracked
+                               if not t.is_person
+                               and str(getattr(t, "source", "yolo")) != "novelty"]
+            _nov_filtered = [
+                n for n in _nov_out
+                if not any(boxes_duplicate(tuple(n.bbox), yb)
+                           for yb in _kept_obj_boxes)
+            ]
+            tracked = list(tracked) + list(_nov_filtered)
+
+    # 2) person crops for pose (lazy: only persons, only analysis ticks)
     person_tracked = [t for t in tracked if t.is_person]
     person_bboxes = [t.bbox for t in person_tracked]
-    pose_results = movenet.estimate(frame, person_bboxes) if person_tracked else []
+    pose_results = movenet.estimate(frame, person_bboxes) if (person_tracked and run_pose) else []
 
     # map namespaced person id → keypoints
     kp_by_ns = {}
@@ -66,6 +106,11 @@ def build_tracks_real(frame, tracked, movenet, tracker, frame_index):
 
     # 3) convert to Track objects (namespaced ids, stable across frames)
     persons, objects = tracker.to_tracks(tracked, keypoints_by_person_ns=kp_by_ns)
+    # 3b) Stable object identity is assigned by the event detector's pair
+    # memory (which already persists a bag across tracker id churn via its
+    # rebind logic) and stamped onto the object Tracks in process_frame. The
+    # ``object_identity`` argument is accepted for API compatibility but the
+    # authoritative uid comes from the pair, not the raw detections.
     return persons, objects
 
 
@@ -102,8 +147,18 @@ def main():
         post_seconds=args.post,
         camera_id=args.camera_id,
         post_backend_url=args.post_backend or None,
+        # Adaptive self-tuning (adaptive_tuner.py): concurrent tier ladder +
+        # online learning store. In file mode the learning record is
+        # attributed to the video file name.
+        auto_tune=True,
     )
     pipe = InferencePipeline(cfg)
+    if args.source == "file" and args.video:
+        # Attribute the online-learning record to the video file name.
+        try:
+            pipe.event_detector.learning_video = os.path.basename(args.video)
+        except Exception:
+            pass
 
     # source
     if args.source == "camo":
@@ -144,6 +199,17 @@ def main():
     tracker_ns = BytetrackTracker()
     tracker_ns.load()
 
+    # Class-agnostic NOVELTY (scene-change) detector — additive, separate source.
+    # Reads NOVELTY_* keys from config/events.yaml (NOVELTY_ENABLED gates it).
+    from inference.detection.novelty_detector import NoveltyDetector, NoveltyConfig
+    nov_cfg = NoveltyConfig.from_yaml()
+    nov = NoveltyDetector(nov_cfg) if nov_cfg.enabled else None
+    if nov is not None:
+        print(f"Novelty (scene-change) detector ENABLED: bg_frames={nov.config.bg_frames}, "
+              f"stationary_frames={nov.config.stationary_frames}, person_mask_pad={nov.config.person_mask_pad}")
+    else:
+        print("Novelty (scene-change) detector DISABLED (NOVELTY_ENABLED=false).")
+
     print(f"Running. buffer={args.buffer}s analysis_fps={args.analysis_fps} pre/post={args.pre}/{args.post}s")
     print("Press Ctrl+C to stop.")
 
@@ -171,23 +237,55 @@ def main():
     last_infer_time = 0.0
     try:
         for pkt in src:
-            _latest_frame[0] = pkt.frame  # expose to the backend stream router
             t_start = time.time()
-            
+
             # REAL ByteTrack path: detector.track() returns TrackedDetection
             # objects with stable ids (persist=True keeps tracker state).
             tracked = detector.track(pkt.frame, persist=True)
+            run_pose = pipe.should_analyze(pkt.timestamp)
             persons, objects = build_tracks_real(
-                pkt.frame, tracked, movenet, tracker_ns, frame_count,
+                pkt.frame, tracked, movenet, tracker_ns, frame_count, run_pose=run_pose, nov=nov,
             )
             events = pipe.process_frame(pkt.frame, pkt.timestamp, persons, objects)
+
+            # Visualize the SAME production inference results for MJPEG stream.
+            current_event = None
+            if events:
+                ev = events[-1]
+                current_event = {
+                    "banner": "LITTERING EVENT CANDIDATE DETECTED",
+                    "timestamp": ev.event_timestamp,
+                    "frame": frame_count,
+                    "person_track_id": ev.person_track_id,
+                    "object_track_id": ev.object_track_id,
+                    "confidence": ev.confidence,
+                }
+            try:
+                analysis = build_frame_analysis(
+                    persons,
+                    objects,
+                    pipe.event_detector,
+                    tracker_ns,
+                    pkt.timestamp,
+                    frame_count,
+                    source_fps=float(getattr(src, "fps", 0.0) or 0.0),
+                    analysis_fps=float(cfg.analysis_fps),
+                    video_name=args.source,
+                    event=current_event,
+                )
+                annotated = render_analysis_frame(pkt.frame, analysis, event=current_event)
+            except Exception as e:
+                print(f"[visualization warning] {e}", file=sys.stderr)
+                annotated = pkt.frame
+            _latest_frame[0] = annotated  # expose annotated real frame to stream
+
             last_infer_time = (time.time() - t_start) * 1000.0
 
             for ev in events:
                 print(f"[{ev.event_timestamp:.2f}] 🚨 LITTERING CONFIRMED — {ev.object_type} "
                       f"person={ev.person_track_id} object={ev.object_track_id} conf={ev.confidence:.2f}")
             if args.show and has_cv2:
-                cv2.imshow("littering", pkt.frame)
+                cv2.imshow("littering", annotated)
                 if cv2.waitKey(1) & 0xFF == ord("q"):
                     break
             frame_count += 1
@@ -196,23 +294,33 @@ def main():
             if frame_count % 5 == 0:
                 h_img, w_img = pkt.frame.shape[:2]
                 entities = []
+                pair_by_person = {int(k[0]): mem for k, mem in pipe.event_detector._pairs.items()}
+                pair_by_bag = {int(k[1]): mem for k, mem in pipe.event_detector._pairs.items()}
                 for p in persons:
                     x1, y1, x2, y2 = p.bbox
+                    mem = pair_by_person.get(int(p.track_id))
                     entities.append({
                         "trackId": p.track_id,
                         "label": "Person",
                         "bbox": {"x": x1/w_img, "y": y1/h_img, "w": (x2-x1)/w_img, "h": (y2-y1)/h_img},
-                        "confidence": 0.90,
-                        "isPerson": True
+                        "confidence": float(getattr(p, "confidence", 0.0) or 0.0),
+                        "isPerson": True,
+                        "source": str(getattr(p, "source", "yolo") or "yolo"),
+                        "state": getattr(mem.state, "value", None) if mem is not None else None,
+                        "associatedObjectId": int(mem.bag_id) if mem is not None else None,
                     })
                 for o in objects:
                     x1, y1, x2, y2 = o.bbox
+                    mem = pair_by_bag.get(int(o.track_id))
                     entities.append({
                         "trackId": o.track_id,
                         "label": o.class_name,
                         "bbox": {"x": x1/w_img, "y": y1/h_img, "w": (x2-x1)/w_img, "h": (y2-y1)/h_img},
-                        "confidence": 0.85,
-                        "isPerson": False
+                        "confidence": float(getattr(o, "confidence", 0.0) or 0.0),
+                        "isPerson": False,
+                        "source": str(getattr(o, "source", "yolo") or "yolo"),
+                        "state": getattr(mem.state, "value", None) if mem is not None else None,
+                        "associatedPersonId": int(mem.person_id) if mem is not None else None,
                     })
                 
                 fps = frame_count / max(1e-6, time.time() - t0)
@@ -235,7 +343,12 @@ def main():
         src.release()
         if args.show and has_cv2:
             cv2.destroyAllWindows()
+        try:
+            pipe.finalize()
+        except Exception as e:
+            print(f"finalize warning: {e}")
         print(f"Total confirmed events: {len(pipe.events)}")
+        print(f"Event detector summary: {pipe.event_detector.summary()}")
 
 
 if __name__ == "__main__":

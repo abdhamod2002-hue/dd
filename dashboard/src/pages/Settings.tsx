@@ -17,7 +17,7 @@ const SETTINGS: SettingRow[] = [
 
   // Detection
   { group: "Detection", label: "Person model", value: "yolov8n.pt (COCO person)", status: "implemented" },
-  { group: "Detection", label: "Litter model", value: "inference/detection/weights/best.pt", status: "implemented" },
+  { group: "Detection", label: "Litter model", value: "best.pt (5 litter classes) + waste_bag_real_v1.pt (waste bag, trained on real D:\\22 videos; model quality audit: NOT production-ready — see real_train/audit_evidence.json)", status: "implemented" },
   { group: "Detection", label: "Person confidence", value: "0.40", status: "implemented" },
   { group: "Detection", label: "Litter confidence", value: "0.35", status: "implemented" },
 
@@ -35,7 +35,7 @@ const SETTINGS: SettingRow[] = [
 
   // Object classes
   { group: "Object Classes", label: "Litter candidates", value: "bottle, cup, can, tissue paper, wrapper, …", status: "implemented" },
-  { group: "Object Classes", label: "Custom classes", value: "Future — fine-tune best.pt", status: "future" },
+  { group: "Object Classes", label: "Custom classes", value: "waste_bag — added via waste_bag_real_v1.pt (YOLOv8n, trained on real D:\\22 videos; audit verdict: over-fires on full video, needs more annotation+training before production use)", status: "implemented" },
 
   // System
   { group: "System", label: "Database", value: "PostgreSQL (docker-compose)", status: "implemented" },

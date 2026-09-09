@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import List, Optional
 
@@ -14,9 +15,10 @@ from backend.database import get_db
 
 router = APIRouter(prefix="/evidence", tags=["evidence"])
 
-# Where uploaded evidence files are stored on disk. Relative to the backend
-# package directory so it works regardless of the process CWD.
-EVIDENCE_STORE = Path(__file__).resolve().parent.parent / "evidence_store"
+# Where uploaded evidence files are stored on disk. Default is the repository
+# root ``evidence_store/`` so Docker bind/volume mounts line up. Override with
+# EVIDENCE_STORE for deployments that need a different path.
+EVIDENCE_STORE = Path(os.environ.get("EVIDENCE_STORE", str(Path(__file__).resolve().parents[2] / "evidence_store")))
 
 
 def _event_or_404(db: Session, event_id: int) -> models.Event:
@@ -138,13 +140,13 @@ def serve_evidence_file(rel_path: str):
 
 @router.get("/event/{event_id}/snapshot")
 def serve_event_snapshot(event_id: int, db: Session = Depends(get_db)):
-    """Convenience route: serve the snapshot for the first evidence row
+    """Convenience route: serve the snapshot for the LATEST evidence row
     of an event (most recent upload). The dashboard uses this when it
     only needs the thumbnail."""
     ev = (
         db.query(models.Evidence)
         .filter(models.Evidence.event_id == event_id)
-        .order_by(models.Evidence.id.asc())
+        .order_by(models.Evidence.id.desc())
         .first()
     )
     if ev is None or not ev.image_path:

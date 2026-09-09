@@ -142,20 +142,27 @@ def test_bytetrack_emits_stable_ids_across_frames(tmp_path):
     cap.release()
     assert len(frames) == 20
 
-    detector = YoloDetector(person_weights="yolov8n.pt", litter_weights="nonexistent.pt")
+    detector = YoloDetector(person_weights="yolov8n.pt", litter_weights="nonexistent.pt",
+                          bag_weights=None)
     detector.load()
-    # litter model absent → person-only path (litter_classes == [])
+    # litter model absent and bag model explicitly disabled → person-only
+    # path. The working tree otherwise loads garbage_bag_v2.pt which emits
+    # spurious Garbage-Bag boxes on the synthetic zidane crop and would
+    # pollute the person-stability assertion (detected via stash comparison).
 
     tracker = BytetrackTracker()
     tracker.load()
 
-    # run real track() across the sequence
+    # run real track() across the sequence (person ids only — bag/color
+    # false positives on the synthetic crop are irrelevant to person-id
+    # stability and would otherwise make the all_ids→namespace lookup
+    # ambiguous).
     per_frame_ids = []
     per_frame_tracked = []
     for i, f in enumerate(frames):
         tracked = detector.track(f, persist=True)
         tracker.update(tracked, frame_index=i)
-        ids_this_frame = sorted(t.track_id for t in tracked)
+        ids_this_frame = sorted(t.track_id for t in tracked if t.is_person)
         per_frame_ids.append(ids_this_frame)
         per_frame_tracked.append(tracked)
 
