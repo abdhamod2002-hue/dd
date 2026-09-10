@@ -17,15 +17,20 @@ const SETTINGS: SettingRow[] = [
 
   // Detection
   { group: "Detection", label: "Person model", value: "yolov8n.pt (COCO person)", status: "implemented" },
-  { group: "Detection", label: "Litter model", value: "best.pt (5 litter classes) + waste_bag_real_v1.pt (waste bag, trained on real D:\\22 videos; model quality audit: NOT production-ready — see real_train/audit_evidence.json)", status: "implemented" },
+  { group: "Detection", label: "Litter model", value: "best.pt (5 litter classes, YOLO conf 0.35) + garbage_bag_v2.pt (waste bag, loaded via WASTE_BAG_WEIGHTS when present)", status: "implemented" },
+  { group: "Detection", label: "Object tracker", value: "ByteTrack (YOLO-confirmed bags only; CSRT fallback bridged ≤ max_fallback_tracker_gap_frames = 16, then rejected as BAG_NOT_DETECTED)", status: "implemented" },
   { group: "Detection", label: "Person confidence", value: "0.40", status: "implemented" },
   { group: "Detection", label: "Litter confidence", value: "0.35", status: "implemented" },
 
-  // Behavior / event
-  { group: "Behavior Engine", label: "Event threshold (voting)", value: "5.0 (weighted score)", status: "implemented" },
-  { group: "Behavior Engine", label: "Revert threshold", value: "1.5", status: "implemented" },
-  { group: "Behavior Engine", label: "Hold dwell", value: "0.25s", status: "implemented" },
-  { group: "Behavior Engine", label: "Abandon window", value: "3.0s (put-down reversion)", status: "implemented" },
+  // Behavior / event engine — production FSM (LitteringEventDetector, config/events.yaml)
+  { group: "Behavior Engine (FSM)", label: "Min carried frames", value: "6 (min_carried_frames)", status: "implemented" },
+  { group: "Behavior Engine (FSM)", label: "Min stationary frames", value: "8 (min_stationary_frames)", status: "implemented" },
+  { group: "Behavior Engine (FSM)", label: "Min departed frames", value: "2 (min_departed_frames)", status: "implemented" },
+  { group: "Behavior Engine (FSM)", label: "Confirmation grace", value: "8 frames (confirmation_grace_frames)", status: "implemented" },
+  { group: "Behavior Engine (FSM)", label: "Release detection", value: "windowed distance ratio 0.35 over release_window_frames=4; static-bag and feet-put-down variants gated by anti-furniture check", status: "implemented" },
+  { group: "Behavior Engine (FSM)", label: "Abandonment confirmation", value: "8 frames on ground, unreclaimed (min_abandonment_frames)", status: "implemented" },
+  { group: "Behavior Engine (FSM)", label: "Bin vs ground gate", value: "require_ground_confirmation=true; bin-zone deposits rejected as BIN_ZONE_DEPOSIT", status: "implemented" },
+  { group: "Behavior Engine (FSM)", label: "Min event confidence", value: "0.80 (min_event_confidence)", status: "implemented" },
 
   // Buffer / evidence
   { group: "Evidence", label: "Buffer window", value: "6.0s", status: "implemented" },
@@ -35,7 +40,7 @@ const SETTINGS: SettingRow[] = [
 
   // Object classes
   { group: "Object Classes", label: "Litter candidates", value: "bottle, cup, can, tissue paper, wrapper, …", status: "implemented" },
-  { group: "Object Classes", label: "Custom classes", value: "waste_bag — added via waste_bag_real_v1.pt (YOLOv8n, trained on real D:\\22 videos; audit verdict: over-fires on full video, needs more annotation+training before production use)", status: "implemented" },
+  { group: "Object Classes", label: "Custom classes", value: "Garbage Bag — added via garbage_bag_v2.pt (YOLOv8n; resolved by _resolve_bag_weights: WASTE_BAG_WEIGHTS env → garbage_bag_v2.pt → None)", status: "implemented" },
 
   // System
   { group: "System", label: "Database", value: "PostgreSQL (docker-compose)", status: "implemented" },

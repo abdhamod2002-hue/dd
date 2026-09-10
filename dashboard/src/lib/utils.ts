@@ -55,6 +55,28 @@ export function stateVisual(state: LitterStateLike): {
 
 type LitterStateLike = string;
 
+/**
+ * A left-edge severity accent color, shared across Violations rows,
+ * Dashboard's recent-event list, and EvidencePage cards, so a reviewer
+ * scanning any of the three gets the same at-a-glance severity read
+ * (confirmed = danger red, reviewing = warning amber, etc.) rather than
+ * three independently-invented color schemes.
+ */
+export function severityAccent(status: string): string {
+  switch (status) {
+    case "confirmed":
+      return "var(--danger)";
+    case "reviewing":
+      return "var(--warning)";
+    case "new":
+      return "var(--info)";
+    case "rejected":
+      return "var(--text-muted)";
+    default:
+      return "var(--border-default)";
+  }
+}
+
 export function statusBadge(s: string): { label: string; className: string } {
   switch (s) {
     case "new":

@@ -4,7 +4,7 @@ import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { useFetch } from "../lib/useFetch";
 import { getCameras, getEvents } from "../lib/api";
 import { Badge } from "../components/Badge";
-import { formatTime, formatConfidence } from "../lib/utils";
+import { formatTime, formatConfidence, severityAccent } from "../lib/utils";
 
 const STATUSES = ["new", "reviewing", "confirmed", "rejected"] as const;
 const PAGE_SIZE = 20;
@@ -115,7 +115,11 @@ export function Violations() {
                 <tr><td colSpan={7} className="px-4 py-10 text-center text-[12px] text-[var(--text-muted)]">No violations match the filters</td></tr>
               )}
               {filtered.map((ev) => (
-                <tr key={ev.id} className="transition-colors hover:bg-[var(--bg-hover)]">
+                <tr
+                  key={ev.id}
+                  className="border-l-2 transition-colors hover:bg-[var(--bg-hover)]"
+                  style={{ borderLeftColor: severityAccent(ev.status) }}
+                >
                   <td className="px-4 py-3">
                     <Link to={`/violations/${ev.id}`} className="mono font-bold text-[var(--accent)] hover:underline">#{ev.id}</Link>
                   </td>
@@ -134,7 +138,12 @@ export function Violations() {
         {/* mobile cards */}
         <div className="divide-y divide-[var(--border-subtle)] md:hidden">
           {filtered.map((ev) => (
-            <Link key={ev.id} to={`/violations/${ev.id}`} className="block px-4 py-3 hover:bg-[var(--bg-hover)]">
+            <Link
+              key={ev.id}
+              to={`/violations/${ev.id}`}
+              className="block border-l-2 px-4 py-3 hover:bg-[var(--bg-hover)]"
+              style={{ borderLeftColor: severityAccent(ev.status) }}
+            >
               <div className="flex items-center justify-between">
                 <span className="mono font-bold text-[var(--accent)]">#{ev.id}</span>
                 <Badge status={ev.status} />

@@ -681,7 +681,21 @@ def _run_video_analysis_job(job_id: int):
                 continue
 
             # 1) create the backend Event row with stable event-actor/object ownership (spec #9).
+            # WRITE-PATH HARDENING: a confirmed event must never be persisted
+            # without its frozen event-actor / event-object stable IDs (Phase C
+            # contract). If the detector event dict is missing them, this is an
+            # invariant violation — refuse to persist and surface it loudly.
             det_ev = confirmed_event_dicts.get(ev.event_id) if ev.event_id in confirmed_event_dicts else None
+            actor_uid = det_ev.get("event_actor_person_uid") if det_ev else None
+            actor_track = det_ev.get("event_actor_person_track_id") if det_ev else None
+            object_uid = det_ev.get("event_object_uid") if det_ev else None
+            object_track = det_ev.get("event_object_track_id") if det_ev else None
+            assert actor_uid is not None and object_uid is not None, (
+                f"WRITE-PATH INVARIANT VIOLATION for job {job.id} event {ev.event_id}: "
+                f"confirmed event is missing stable identity fields "
+                f"(event_actor_person_uid={actor_uid!r}, event_object_uid={object_uid!r}); "
+                f"refusing to persist a NULL-identity event"
+            )
             db_event = models.Event(
                 camera_id=cam.id,
                 person_track_id=str(ev.person_track_id),
@@ -691,10 +705,10 @@ def _run_video_analysis_job(job_id: int):
                 timestamp=datetime.now(timezone.utc),
                 status="confirmed",
                 analysis_job_id=job.id,
-                event_actor_person_track_id=det_ev.get("event_actor_person_track_id") if det_ev else None,
-                event_actor_person_uid=det_ev.get("event_actor_person_uid") if det_ev else None,
-                event_object_track_id=det_ev.get("event_object_track_id") if det_ev else None,
-                event_object_uid=det_ev.get("event_object_uid") if det_ev else None,
+                event_actor_person_track_id=actor_track,
+                event_actor_person_uid=actor_uid,
+                event_object_track_id=object_track,
+                event_object_uid=object_uid,
             )
             db.add(db_event)
             db.commit()

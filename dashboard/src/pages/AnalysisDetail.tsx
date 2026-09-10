@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   AlertTriangle,
@@ -36,6 +36,7 @@ export function AnalysisDetail() {
   const { id } = useParams<{ id: string }>();
   const jobId = Number(id);
 
+  const analyzedRef = useRef<HTMLVideoElement>(null);
   const [job, setJob] = useState<VideoAnalysisJob | null>(null);
   const [manifest, setManifest] = useState<AnalysisManifest | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
@@ -204,6 +205,7 @@ export function AnalysisDetail() {
           </h2>
           <video
             key={`an-${job.id}`}
+            ref={analyzedRef}
             controls
             className="w-full rounded-lg border border-[var(--border-subtle)] bg-black"
             src={analyzedVideoUrl(job.id)}
@@ -234,7 +236,8 @@ export function AnalysisDetail() {
         {(manifest?.markers ?? []).length > 0 && (
           <TimelineMarkers
             markers={manifest?.markers ?? []}
-            sourceFps={metadata?.source_fps ?? job.fps ?? 30}
+            durationSec={metadata?.duration_sec ?? job.duration_sec}
+            videoRef={analyzedRef}
           />
         )}
       </div>

@@ -4,7 +4,7 @@ import { FileVideo, Search, ImageOff, ChevronLeft, ChevronRight } from "lucide-r
 import { useFetch } from "../lib/useFetch";
 import { getEvents, getEvidence, evidenceFileUrl } from "../lib/api";
 import { Badge } from "../components/Badge";
-import { formatTime } from "../lib/utils";
+import { formatTime, severityAccent } from "../lib/utils";
 
 const PAGE_SIZE = 24;
 
@@ -73,7 +73,8 @@ export function EvidencePage() {
             <Link
               key={ev.id}
               to={`/violations/${ev.id}`}
-              className="panel group overflow-hidden transition-colors hover:border-[var(--accent)]/40"
+              className="panel group overflow-hidden border-t-2 transition-colors hover:border-[var(--accent)]/40 hover:shadow-[0_0_24px_-8px_var(--accent-glow)]"
+              style={{ borderTopColor: severityAccent(ev.status) }}
             >
               <div className="relative aspect-video bg-[var(--bg-base)]">
                 {snapPath ? (

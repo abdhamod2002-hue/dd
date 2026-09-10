@@ -15,7 +15,7 @@ import { getCameras, getEvents, getStatistics, getStatus } from "../lib/api";
 import { StatCard } from "../components/StatCard";
 import { LiveCamera } from "../components/LiveCamera";
 import { Badge } from "../components/Badge";
-import { cn, formatTime, formatConfidence } from "../lib/utils";
+import { cn, formatTime, formatConfidence, severityAccent } from "../lib/utils";
 import type { Event } from "../types";
 
 export function Dashboard() {
@@ -136,7 +136,8 @@ export function Dashboard() {
               <Link
                 key={ev.id}
                 to={`/violations/${ev.id}`}
-                className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--bg-hover)]"
+                className="flex items-center gap-3 border-l-2 px-4 py-3 transition-colors hover:bg-[var(--bg-hover)]"
+                style={{ borderLeftColor: severityAccent(ev.status) }}
               >
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--danger)]/12">
                   <AlertTriangle className="h-4 w-4 text-[var(--danger)]" />

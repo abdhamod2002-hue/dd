@@ -1,22 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  Upload,
-  FileVideo,
-  Layers,
-  FileText,
-  AlertCircle,
-  Crosshair,
-  Play,
-  Image as ImageIcon,
-  User,
-  Package
-} from "lucide-react";
+import { Upload, FileVideo, Layers, FileText, AlertCircle } from "lucide-react";
 import { useFetch } from "../lib/useFetch";
-import { analyzedVideoUrl, evidenceFileUrl, getAnalysisJobs, getEvidence, originalVideoUrl, uploadVideoAnalysis } from "../lib/api";
-import { TimelineMarkers } from "../components/TimelineMarkers";
+import { analyzedVideoUrl, evidenceFileUrl, getAnalysisJobEvents, getAnalysisJobs, getEvidence, originalVideoUrl, uploadVideoAnalysis } from "../lib/api";
+import { selectDetectorViolation } from "../lib/detectorEvent";
+import { ForensicAssetPanel } from "../components/ForensicAssetPanel";
+import { SequenceStrip, buildSequenceSteps } from "../components/SequenceStrip";
+import { DebugReviewPanel } from "../components/DebugReviewPanel";
 import { cn, formatTime } from "../lib/utils";
-import type { AnalysisMarker, Evidence } from "../types";
+import type { AnalysisMarker, Event, Evidence } from "../types";
 
 function outcomeForJob(job: any, report: any): { label: string; tone: string; detail?: string } {
   if (!job) return { label: "NO JOB", tone: "text-[var(--text-muted)]" };
@@ -44,7 +36,8 @@ export function VideoAnalysisPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [activeJobId, setActiveJobId] = useState<number | null>(null);
   const analyzedRef = useRef<HTMLVideoElement>(null);
-  const [evidence, setEvidence] = useState<Evidence[]>([]);
+  const [jobEvents, setJobEvents] = useState<Event[]>([]);
+  const [eventEvidence, setEventEvidence] = useState<Record<number, Evidence | undefined>>({});
 
   // Poll analysis jobs list every 3s
   const { data: jobsData, loading } = useFetch(() => getAnalysisJobs(20, 0), [], 3000);
@@ -83,22 +76,51 @@ export function VideoAnalysisPage() {
   }
   const outcome = outcomeForJob(selectedJob, parsedReport);
   const markers: AnalysisMarker[] = parsedReport?.markers ?? [];
-  const firstEventId = parsedReport?.persisted_event_ids?.[0] ?? null;
+  const violations = parsedReport?.event_detector?.confirmed_violations ?? [];
 
+  // Fetch the REAL, per-event DB rows for this job (not just the report's
+  // compact detector dicts) plus each one's OWN evidence — every confirmed
+  // event in a job used to render against the same reused `evidence[0]`
+  // (the first event's crops/clip), so a job with 2+ confirmed events showed
+  // one event's photos under every violation's header. Each event now gets
+  // its own fetched Evidence row, matched by DB id, never shared.
   useEffect(() => {
     let cancelled = false;
-    if (!firstEventId) {
-      setEvidence([]);
+    if (!selectedJob || selectedJob.events_count <= 0) {
+      setJobEvents([]);
+      setEventEvidence({});
       return;
     }
-    getEvidence(Number(firstEventId))
-      .then((data) => { if (!cancelled) setEvidence(data); })
-      .catch(() => { if (!cancelled) setEvidence([]); });
-    return () => { cancelled = true; };
-  }, [firstEventId]);
+    getAnalysisJobEvents(selectedJob.id)
+      .then(async (events) => {
+        if (cancelled) return;
+        setJobEvents(events);
+        const map: Record<number, Evidence | undefined> = {};
+        await Promise.all(
+          events.map(async (ev) => {
+            try {
+              const list = await getEvidence(ev.id);
+              map[ev.id] = list[0];
+            } catch {
+              map[ev.id] = undefined;
+            }
+          }),
+        );
+        if (!cancelled) setEventEvidence(map);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setJobEvents([]);
+          setEventEvidence({});
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedJob?.id, selectedJob?.events_count]);
 
   const eventMarker = markers.find((m) => m.label === "EVENT") ?? markers.find((m) => m.kind === "event");
-  const currentEvidence = evidence[0];
+  const firstEvidence = jobEvents.length > 0 ? eventEvidence[jobEvents[0].id] : undefined;
 
   const focusEvent = () => {
     const video = analyzedRef.current;
@@ -383,56 +405,10 @@ export function VideoAnalysisPage() {
                     </div>
                   )}
 
-                  {parsedReport.event_detector.confirmed_violations?.length > 0 && (
-                    <div>
-                      <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Confirmed Evidence</div>
-                      <div className="space-y-1.5">
-                        {parsedReport.event_detector.confirmed_violations.map((ev: any) => (
-                          <div key={ev.event_id} className="rounded bg-[var(--bg-base)] p-2 text-[11px]">
-                            <div className="flex justify-between">
-                              <span className="mono font-bold text-[var(--danger)]">{ev.event_id}</span>
-                              <span className="mono">{Math.round((ev.confidence || 0) * 100)}%</span>
-                            </div>
-                            <div className="mt-1 text-[var(--text-secondary)]">
-                              P{ev.person_track_id} → B{ev.bag_track_id} · {ev.bag_class}
-                            </div>
-                            {ev.detector_source && (
-                              <div className="mt-0.5 mono text-[10px] text-[var(--warning)]">src: {ev.detector_source}</div>
-                            )}
-                            <div className="mt-1 mono text-[10px] text-[var(--text-muted)]">
-                              carry:{ev.frames?.carry_start ?? "—"} release:{ev.frames?.release ?? "—"} ground:{ev.frames?.ground ?? "—"} away:{ev.frames?.departure ?? "—"}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {parsedReport.event_detector.rejected_candidates?.length > 0 && (
-                    <div>
-                      <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Rejected Candidates</div>
-                      <div className="space-y-1.5">
-                        {parsedReport.event_detector.rejected_candidates.map((ev: any) => (
-                          <div key={ev.event_id} className="rounded bg-[var(--bg-base)] p-2 text-[11px]">
-                            <div className="flex justify-between">
-                              <span className="mono font-bold text-[var(--warning)]">{ev.reason}</span>
-                              <span className="mono">{Math.round((ev.confidence || 0) * 100)}%</span>
-                            </div>
-                            <div className="mt-1 text-[var(--text-secondary)]">
-                              P{ev.person_track_id} → B{ev.bag_track_id} · {ev.state}
-                            </div>
-                            {ev.detector_source && (
-                              <div className="mt-0.5 mono text-[10px] text-[var(--warning)]">src: {ev.detector_source}</div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
                   <div className="rounded bg-[var(--bg-base)] p-2 text-[10px] leading-relaxed text-[var(--text-muted)]">
                     A confirmed littering event means the temporal detector observed carry → release → stationary ground → departure with sufficient evidence.
-                    It is an assistive review candidate, not a legal determination and not 100% accurate.
+                    It is an assistive review candidate, not a legal determination and not 100% accurate. Full crops/clip for each confirmed
+                    event are shown in the Primary Evidence panel(s) below.
                   </div>
                 </div>
               )}
@@ -460,168 +436,39 @@ export function VideoAnalysisPage() {
         </div>
       </div>
 
-      {/* PRIMARY EVENT EVIDENCE — clean, single actor+object */}
-      {selectedJob && parsedReport?.event_detector?.confirmed_violations?.length > 0 && (
-        <div className="panel p-5 space-y-4 border-[var(--danger)]/30">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-[var(--danger)] flex items-center gap-2">
-            <AlertCircle className="h-4 w-4" /> Littering Event Candidate — Actor + Object + Timeline
+      {/* PRIMARY EVIDENCE — one panel per confirmed event, each anchored to
+          its OWN fetched Evidence row (never a shared/reused one). */}
+      {selectedJob && jobEvents.length > 0 && (
+        <div className="space-y-5">
+          <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-[var(--text-primary)]">
+            <AlertCircle className="h-4 w-4 text-[var(--danger)]" />
+            {jobEvents.length > 1 ? `${jobEvents.length} Littering Event Candidates` : "Littering Event Candidate"}
           </h2>
-          {parsedReport.event_detector.confirmed_violations.map((ev: any) => (
-            <div key={ev.event_id} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-[11px]">
-                <div className="rounded bg-[var(--bg-base)] p-2"><div className="text-[10px] uppercase text-[var(--text-muted)]">Actor</div><div className="mono font-bold">PERSON #{ev.event_actor_person_uid ?? ev.person_track_id} <span className="text-[10px] font-normal">track {ev.event_actor_person_track_id ?? ev.person_track_id}</span></div></div>
-                <div className="rounded bg-[var(--bg-base)] p-2"><div className="text-[10px] uppercase text-[var(--text-muted)]">Object</div><div className="mono font-bold">WASTE #{ev.event_object_uid ?? ev.bag_track_id} <span className="text-[10px] font-normal">{ev.bag_class}</span></div></div>
-                <div className="rounded bg-[var(--bg-base)] p-2"><div className="text-[10px] uppercase text-[var(--text-muted)]">Confidence</div><div className="mono font-bold">{Math.round((ev.confidence||0)*100)}%</div></div>
-                <div className="rounded bg-[var(--bg-base)] p-2"><div className="text-[10px] uppercase text-[var(--text-muted)]">Source</div><div className="mono font-bold text-[var(--accent)]">{ev.detector_source}</div></div>
+          {jobEvents.map((ev) => {
+            const detectorViolation = selectDetectorViolation(violations, ev);
+            const evEvidence = eventEvidence[ev.id];
+            return (
+              <div key={ev.id} className="space-y-3">
+                <ForensicAssetPanel event={ev} evidence={evEvidence} />
+                <SequenceStrip steps={buildSequenceSteps(evEvidence, detectorViolation)} />
               </div>
-              <div className="flex flex-wrap gap-2 text-[11px]">
-                {[
-                  {k:'carry_start', label:'CARRY'},
-                  {k:'release', label:'RELEASE'},
-                  {k:'ground', label:'GROUND'},
-                  {k:'departure', label:'DEPARTURE'},
-                ].map(s => (
-                  <span key={s.k} className={cn("rounded px-2 py-1 text-[10px] font-bold", ev.frames?.[s.k] != null ? "bg-[var(--accent)]/20 text-[var(--accent)]" : "bg-[var(--bg-base)] text-[var(--text-muted)]")}>
-                    {s.label} {ev.frames?.[s.k] != null ? `f${ev.frames[s.k]}` : '—'}
-                  </span>
-                ))}
-              </div>
-              {currentEvidence?.clip_path && (
-                <div className="space-y-2">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent)]">Event Clip — 5s before carry to 5s after departure (primary evidence)</div>
-                  <video controls className="w-full rounded-lg border-2 border-[var(--accent)]/50 bg-black" src={evidenceFileUrl(currentEvidence.clip_path)} />
-                </div>
-              )}
-              {(currentEvidence || parsedReport?.event_detector) && (
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {currentEvidence?.image_path && (
-                    <figure className="rounded-lg border-2 border-[var(--danger)]/30 bg-[var(--bg-base)] p-2">
-                      <img src={evidenceFileUrl(currentEvidence.image_path)} alt="Event snapshot" className="h-36 w-full rounded object-contain" />
-                      <figcaption className="mt-1 text-[10px] font-bold uppercase text-[var(--danger)]">Event Snapshot — Actor + Object only</figcaption>
-                    </figure>
-                  )}
-                  {currentEvidence?.person_image_path && (
-                    <figure className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] p-2">
-                      <img src={evidenceFileUrl(currentEvidence.person_image_path)} alt="Person evidence" className="h-36 w-full rounded object-contain" />
-                      <figcaption className="mt-1 text-[10px] uppercase text-[var(--text-muted)]">Person — stable UID #{ev.event_actor_person_uid ?? ev.person_track_id}</figcaption>
-                    </figure>
-                  )}
-                  {currentEvidence?.waste_image_path && (
-                    <figure className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] p-2">
-                      <img src={evidenceFileUrl(currentEvidence.waste_image_path)} alt="Waste evidence" className="h-36 w-full rounded object-contain" />
-                      <figcaption className="mt-1 text-[10px] uppercase text-[var(--text-muted)]">Waste — stable UID #{ev.event_object_uid ?? ev.bag_track_id}</figcaption>
-                    </figure>
-                  )}
-                  {currentEvidence?.face_image_path && (
-                    <figure className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] p-2">
-                      <img src={evidenceFileUrl(currentEvidence.face_image_path)} alt="Face evidence" className="h-36 w-full rounded object-contain" />
-                      <figcaption className="mt-1 flex items-center justify-between text-[10px] uppercase text-[var(--text-muted)]"><span>Face (sensitive)</span><span className="rounded bg-[var(--warning)]/20 px-1.5 py-0.5 text-[9px] font-bold text-[var(--warning)]">REVIEW</span></figcaption>
-                    </figure>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {/* Analyzed Video Review — secondary, debug */}
+      {/* Engineering debug — one shared original/analyzed video pair per job */}
       {selectedJob && (
-        <div className="panel p-5 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-2">
-              <FileVideo className="h-4 w-4" /> Technical Review (Full Video) — Debug
-            </h2>
-            <div className="flex items-center gap-2">
-              {eventMarker && (
-                <button
-                  onClick={focusEvent}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--danger)]/40 bg-[var(--danger)]/10 px-3 py-1.5 text-[11px] font-bold uppercase text-[var(--danger)] hover:bg-[var(--danger)]/20"
-                >
-                  <Crosshair className="h-3.5 w-3.5" /> View Event
-                </button>
-              )}
-              {currentEvidence?.clip_path && (
-                <a
-                  href={evidenceFileUrl(currentEvidence.clip_path)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] px-3 py-1.5 text-[11px] font-bold uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                >
-                  <Play className="h-3.5 w-3.5" /> Event Clip
-                </a>
-              )}
-            </div>
-          </div>
-
-          {selectedJob.analyzed_video_path ? (
-            <>
-              <div className="grid gap-4 lg:grid-cols-2">
-                <div className="space-y-2">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Original upload</div>
-                  <video controls className="w-full rounded-lg border border-[var(--border-subtle)] bg-black object-contain" src={originalVideoUrl(selectedJob.id)} />
-                </div>
-                <div className="space-y-2">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">AI analyzed overlay (debug — all tracks)</div>
-                  <video
-                    ref={analyzedRef}
-                    controls
-                    className="w-full rounded-lg border border-[var(--border-subtle)] bg-black object-contain"
-                    src={analyzedVideoUrl(selectedJob.id)}
-                  />
-                </div>
-              </div>
-
-              {markers.length > 0 && (
-                <div className="space-y-2">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Tracking timeline — click to jump</div>
-                  <TimelineMarkers markers={markers} durationSec={selectedJob.duration_sec} videoRef={analyzedRef} />
-                </div>
-              )}
-
-              {currentEvidence && (
-                <div className="space-y-2">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Evidence package</div>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    {currentEvidence.image_path && (
-                      <figure className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] p-2">
-                        <img src={evidenceFileUrl(currentEvidence.image_path)} alt="Event snapshot" className="h-36 w-full rounded object-contain" />
-                        <figcaption className="mt-1 flex items-center gap-1 text-[10px] uppercase text-[var(--text-muted)]"><ImageIcon className="h-3 w-3" /> Snapshot</figcaption>
-                      </figure>
-                    )}
-                    {currentEvidence.person_image_path && (
-                      <figure className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] p-2">
-                        <img src={evidenceFileUrl(currentEvidence.person_image_path)} alt="Person evidence" className="h-36 w-full rounded object-contain" />
-                        <figcaption className="mt-1 flex items-center gap-1 text-[10px] uppercase text-[var(--text-muted)]"><User className="h-3 w-3" /> Person</figcaption>
-                      </figure>
-                    )}
-                    {currentEvidence.waste_image_path && (
-                      <figure className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] p-2">
-                        <img src={evidenceFileUrl(currentEvidence.waste_image_path)} alt="Waste evidence" className="h-36 w-full rounded object-contain" />
-                        <figcaption className="mt-1 flex items-center gap-1 text-[10px] uppercase text-[var(--text-muted)]"><Package className="h-3 w-3" /> Waste</figcaption>
-                      </figure>
-                    )}
-                    {currentEvidence.face_image_path && (
-                      <figure className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] p-2">
-                        <img src={evidenceFileUrl(currentEvidence.face_image_path)} alt="Face evidence (sensitive — human review required)" className="h-36 w-full rounded object-contain" />
-                        <figcaption className="mt-1 flex items-center justify-between gap-1 text-[10px] uppercase text-[var(--text-muted)]">
-                          <span>Face</span>
-                          <span className="rounded bg-[var(--warning)]/20 px-1.5 py-0.5 text-[9px] font-bold text-[var(--warning)]">REVIEW</span>
-                        </figcaption>
-                      </figure>
-                    )}
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] p-6 text-center text-xs text-[var(--text-muted)]">
-              {selectedJob.status === "completed"
-                ? "Analysis completed, but no analyzed video file was produced. Check backend logs for writer errors."
-                : "The analyzed video will appear here after inference frames are written."}
-            </div>
-          )}
-        </div>
+        <DebugReviewPanel
+          originalVideoUrl={originalVideoUrl(selectedJob.id)}
+          analyzedVideoUrl={selectedJob.analyzed_video_path ? analyzedVideoUrl(selectedJob.id) : undefined}
+          analyzedVideoRef={analyzedRef}
+          clipUrl={firstEvidence?.clip_path ? evidenceFileUrl(firstEvidence.clip_path) : undefined}
+          markers={markers}
+          durationSec={selectedJob.duration_sec}
+          onFocusEvent={focusEvent}
+          hasEventMarker={!!eventMarker}
+        />
       )}
 
       {/* Analysis Jobs History Table */}
