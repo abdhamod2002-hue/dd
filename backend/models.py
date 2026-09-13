@@ -149,3 +149,80 @@ class VideoAnalysisJob(Base):
         # Alias of the primary key; clients may key archive requests/results by
         # analysis_id, which is stable for the lifetime of this record.
         return self.id
+
+    @property
+    def _parsed_report(self) -> dict:
+        if not self.report_json:
+            return {}
+        try:
+            import json
+            data = json.loads(self.report_json)
+            if isinstance(data, dict):
+                # If telemetry is nested, merge so properties find keys in either location
+                if "pipeline_telemetry" in data and isinstance(data["pipeline_telemetry"], dict):
+                    merged = dict(data["pipeline_telemetry"])
+                    if "metrics" in merged and isinstance(merged["metrics"], dict):
+                        merged.update(merged["metrics"])
+                    merged.update(data)
+                    return merged
+                return data
+            return {}
+        except Exception:
+            return {}
+
+    @property
+    def current_stage(self) -> Optional[str]:
+        return self._parsed_report.get("current_stage")
+
+    @property
+    def current_stage_status(self) -> Optional[str]:
+        return self._parsed_report.get("current_stage_status")
+
+    @property
+    def active_persons_count(self) -> int:
+        return self._parsed_report.get("active_persons_count", 0)
+
+    @property
+    def unique_persons_count(self) -> int:
+        return self._parsed_report.get("unique_persons_count", self.persons_detected)
+
+    @property
+    def total_person_track_ids(self) -> int:
+        return self._parsed_report.get("total_person_track_ids", self.persons_detected)
+
+    @property
+    def candidates_count(self) -> int:
+        return self._parsed_report.get("candidates_count", 0)
+
+    @property
+    def rejected_count(self) -> int:
+        return self._parsed_report.get("rejected_count", 0)
+
+    @property
+    def last_processed_frame(self) -> Optional[int]:
+        return self._parsed_report.get("last_processed_frame", self.processed_frames)
+
+    @property
+    def last_update_time(self) -> Optional[str]:
+        return self._parsed_report.get("last_update_time")
+
+    @property
+    def stage_step(self) -> int:
+        return self._parsed_report.get("current_step") or self._parsed_report.get("stage_step", 1)
+
+    @property
+    def total_stages(self) -> int:
+        return self._parsed_report.get("total_stages", 12)
+
+    @property
+    def stage_name_display(self) -> Optional[str]:
+        return self._parsed_report.get("stage_name_display") or self._parsed_report.get("current_stage")
+
+    @property
+    def last_successful_stage(self) -> Optional[str]:
+        return self._parsed_report.get("last_successful_stage")
+
+    @property
+    def stages(self) -> Optional[list]:
+        return self._parsed_report.get("stages")
+

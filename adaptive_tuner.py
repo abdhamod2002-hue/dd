@@ -383,6 +383,22 @@ class AdaptiveEventDetector:
     def rejected_events(self) -> List[Any]:
         return self.primary.rejected_events
 
+    @property
+    def _person_identity(self) -> Any:
+        return self.primary._person_identity
+
+    @property
+    def _object_identity(self) -> Any:
+        return self.primary._object_identity
+
+    @property
+    def last_person_uid_map(self) -> Dict[int, int]:
+        return self.primary.last_person_uid_map
+
+    @property
+    def last_object_uid_map(self) -> Dict[int, Optional[int]]:
+        return self.primary.last_object_uid_map
+
     # ------------------------------------------------------------------ #
     def update(self, persons, bags, timestamp, frame_index=None, frame_size=None) -> List[Any]:
         emitted: List[Any] = []
@@ -441,7 +457,12 @@ class AdaptiveEventDetector:
     def _flush_pending(self, now: Optional[float], final: bool) -> List[Any]:
         """Emit buffered relaxed confirmations whose grace window elapsed
         (or all of them when ``final``), dropping any that a stricter tier
-        confirmed in the meantime."""
+        confirmed in the meantime.
+
+        Also drops relaxed confirmations that lack physical separation
+        evidence (clothing / hip color latch) — tier 1/2 must not promote
+        a body-attached blob that tier-0 correctly refused.
+        """
         out: List[Any] = []
         remaining: List[tuple] = []
         for tier, ev, emit_at in sorted(self._pending_relaxed, key=lambda x: x[0]):
@@ -452,10 +473,81 @@ class AdaptiveEventDetector:
                 continue
             if self._is_duplicate(ev, ts):
                 continue  # a stricter tier confirmed the same physical event
+            if not self._event_has_physical_separation(ev):
+                continue  # clothing latch / no real discard
+            if self._primary_rejected_weak_carry(ev, ts):
+                continue
             self._accept(ev)
             out.append(ev)
         self._pending_relaxed = remaining
         return out
+
+    @staticmethod
+    def _event_has_physical_separation(ev: Any) -> bool:
+        """True when the confirmed event shows the object left the actor."""
+        details = getattr(ev, "details", None) or {}
+        try:
+            max_sep = float(details.get("max_post_release_norm_distance") or 0.0)
+        except (TypeError, ValueError):
+            max_sep = 0.0
+        try:
+            sep_frames = int(details.get("separated_frames") or 0)
+        except (TypeError, ValueError):
+            sep_frames = 0
+        try:
+            bag_disp = float(details.get("max_bag_displacement_px") or 0.0)
+        except (TypeError, ValueError):
+            bag_disp = 0.0
+        # Match littering_event_detector: need sustained separation AND the
+        # bag itself must have moved (not a static clothing/clutter latch).
+        return max_sep >= 0.08 and sep_frames >= 2 and bag_disp >= 50.0
+
+    def _primary_rejected_weak_carry(
+        self, ev: Any, ts: Optional[float]
+    ) -> bool:
+        """Suppress relaxed confirmations when tier-0 already rejected the
+        same actor for missing carry / release / separation in-window."""
+        try:
+            pid = int(ev.person_track_id)
+        except Exception:
+            return False
+        if ts is None:
+            return False
+        weak = {
+            "NOT_ENOUGH_CARRIED_FRAMES",
+            "NO_RELEASE_TRANSITION",
+            "NO_PHYSICAL_SEPARATION",
+        }
+        for rej in self.primary.rejected_events:
+            try:
+                if int(rej.person_track_id) != pid:
+                    continue
+            except Exception:
+                continue
+            reason = getattr(rej, "reason", None)
+            if reason not in weak:
+                continue
+            rej_ts = None
+            try:
+                rej_ts = (
+                    (rej.timestamps or {}).get("confirmed")
+                    or (rej.timestamps or {}).get("departure")
+                    or (rej.timestamps or {}).get("release")
+                    or (rej.timestamps or {}).get("carry_start")
+                )
+            except Exception:
+                rej_ts = None
+            if rej_ts is None:
+                continue
+            if abs(float(ts) - float(rej_ts)) <= self.DEDUP_WINDOW_SEC * 2.0:
+                if reason == "NO_PHYSICAL_SEPARATION":
+                    return True
+                # Carry/release shortfalls: still allow a relaxed rescue when
+                # the event shows real bag motion + separation (brittle but
+                # genuine litter). Block clothing/static latch rescues.
+                if not self._event_has_physical_separation(ev):
+                    return True
+        return False
 
     def reset(self) -> None:
         for det in self._detectors:
@@ -546,9 +638,21 @@ class AdaptiveEventDetector:
         return ts
 
     def _dedup_confirmed(self) -> List[Any]:
+        """Confirmed events that were actually accepted for emit.
+
+        Higher-tier detectors may locally confirm clothing latches; those must
+        NOT appear in the dashboard/report unless ``_flush_pending`` accepted
+        them (physical-separation + primary-rejection gates).
+        """
+        accepted_ids = {
+            eid for eid, _, _ in self._emitted_confirmed if eid is not None
+        }
         out: List[Any] = list(self.primary.confirmed_events)
         for tier, det in enumerate(self._detectors[1:], start=1):
             for ev in det.confirmed_events:
+                eid = getattr(ev, "event_id", None)
+                if eid is None or eid not in accepted_ids:
+                    continue
                 if self._is_duplicate(ev, self._event_ts(ev)):
                     continue
                 ev.evidence = dict(ev.evidence or {})

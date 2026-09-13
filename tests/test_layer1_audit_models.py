@@ -121,8 +121,9 @@ def test_novelty_detected_object_is_not_a_litter_candidate():
         return DetectorBag(track_id=1, bbox=(0.0, 0.0, 10.0, 10.0), class_name=class_name, source=source)
 
     assert _is_semantic_waste(bag("detected_object", "novelty")) is False
-    assert _is_semantic_waste(bag("yellow_waste_bag", "color")) is False  # HSV colour proposal
+    assert _is_semantic_waste(bag("yellow_waste_bag", "color")) is True  # REPAIR-P0-02 discounted HSV
     assert _is_semantic_waste(bag("color_candidate_yellow", "yolo")) is False  # belt-and-suspenders
+    assert _is_semantic_waste(bag("color_candidate_yellow", "color")) is False
     assert _is_semantic_waste(bag("bottle", "yolo")) is True
 
 

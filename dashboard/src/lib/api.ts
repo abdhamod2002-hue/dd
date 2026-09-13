@@ -108,3 +108,21 @@ export function originalVideoUrl(jobId: number): string {
 export function frameAnalysisUrl(jobId: number): string {
   return `${BASE_URL}/analysis/jobs/${jobId}/frame-analysis`;
 }
+
+export function stopAnalysisJob(jobId: number): Promise<{ status: string; job_id: number; message: string }> {
+  return apiFetch<{ status: string; job_id: number; message: string }>(`/analysis/jobs/${jobId}/stop`, {
+    method: "POST",
+  });
+}
+
+export function deleteAnalysisJob(jobId: number, confirm = true): Promise<{ status: string; job_id: number; message: string }> {
+  return apiFetch<{ status: string; job_id: number; message: string }>(`/analysis/jobs/${jobId}?confirm=${confirm}`, {
+    method: "DELETE",
+  });
+}
+
+export function deleteSourceVideo(jobId: number, confirm = true): Promise<{ status: string; job_id: number; message: string }> {
+  return apiFetch<{ status: string; job_id: number; message: string }>(`/analysis/jobs/${jobId}/video?confirm=${confirm}`, {
+    method: "DELETE",
+  });
+}

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from littering_event_detector import (
     DetectorBag,
+    DetectorKeypoints,
     DetectorPerson,
     EventDetectorConfig,
     EventState,
@@ -43,13 +44,25 @@ def _cfg() -> EventDetectorConfig:
     )
 
 
-def _person(pid, cx, cy, height=160.0, conf=0.9):
+def _person(pid, cx, cy, height=160.0, conf=0.9, with_wrists=True):
     half_w = 40.0
     half_h = height / 2.0
+    kp = None
+    if with_wrists:
+        # Wrists near torso center so a mid-body bag can latch as carried
+        # (stationary bags without wrist evidence cannot zone-carry).
+        kp = DetectorKeypoints(
+            left_wrist=(cx - 10.0, cy),
+            right_wrist=(cx + 10.0, cy),
+            torso_center=(cx, cy),
+            left_shoulder=(cx - 20.0, cy - 40.0),
+            right_shoulder=(cx + 20.0, cy - 40.0),
+        )
     return DetectorPerson(
         track_id=pid,
         bbox=(cx - half_w, cy - half_h, cx + half_w, cy + half_h),
         confidence=conf,
+        keypoints=kp,
     )
 
 
@@ -84,8 +97,8 @@ def test_two_object_actor_has_exactly_one_pair_memory():
     """
     det = LitteringEventDetector(_cfg())
     person = _person(1, 640, 180)
-    bag_a = _bag(30001, 640, 220)   # at the wrist — strongest association
-    bag_b = _bag(30002, 720, 235)   # also near the person, weaker
+    bag_a = _bag(30001, 640, 180)   # mid-torso carry band (above ground plane)
+    bag_b = _bag(30002, 720, 185)   # also near the person, weaker
     _ticks(det, [person], [bag_a, bag_b], 6)[0]
 
     pairs_for_person = [k for k in det._pairs if k[0] == 1]
@@ -107,8 +120,8 @@ def test_secondary_object_release_is_invisible_to_event_engine():
     """
     det = LitteringEventDetector(_cfg())
     person = _person(1, 640, 180)
-    bag_a = _bag(30001, 640, 220)
-    bag_b = _bag(30002, 720, 235)
+    bag_a = _bag(30001, 640, 180)
+    bag_b = _bag(30002, 720, 185)
 
     # Phase 1 — carry both objects.
     _, t = _ticks(det, [person], [bag_a, bag_b], 6)
@@ -220,3 +233,54 @@ def test_fallback_gap_gate_p2_1_wiring():
     # YOLO reconfirmation resets the streak.
     mem.fallback_gap_frames = 0
     assert det._rejection_reason(mem, evidence) != "BAG_NOT_DETECTED"
+
+
+def test_static_low_conf_ground_clutter_never_enters_pair_memory():
+    """2026-09-10 clutter gate: a low-confidence (< min_carry_origin_confidence)
+    object resting on the ground plane that is NOT near/carried by the person
+    must never enter FSM pair memory — even though it is within the loose
+    association radius. This is the NESCAFE-tin-on-the-floor case."""
+    det = LitteringEventDetector(_cfg())
+    person = _person(1, 640, 180)   # bbox (600,100)-(680,260)
+    # Bag at (700,320): associated (dist 152px <= 160px person-height radius)
+    # but NOT near, NOT carried, below the feet line, and low confidence.
+    clutter = _bag(90001, 700, 320, conf=0.30)
+    _ticks(det, [person], [clutter], 8)
+    assert det._pairs == {}, (
+        f"static low-conf ground clutter formed pair memories: {list(det._pairs)}"
+    )
+    # Control: the same geometry with healthy confidence DOES enter the FSM.
+    det2 = LitteringEventDetector(_cfg())
+    solid = _bag(90001, 700, 320, conf=0.90)
+    _ticks(det2, [person], [solid], 8)
+    assert det2._pairs, "high-confidence associated bag must still form a pair"
+
+
+def test_carry_requires_wrist_link_when_pose_available():
+    """CARRY-ORIGIN CONSTRAINT: with wrist keypoints available, an object in
+    the carry zone can only become CARRIED if a wrist was ever spatially
+    linked to it. A bag riding in the zone without any hand contact (e.g.
+    clutter passing through the zone projection) stays BAG_NEAR_PERSON."""
+    det = LitteringEventDetector(_cfg())
+    # Wrists far from the bag (right wrist up by the head).
+    kp_far = DetectorKeypoints(left_wrist=(560, 120), right_wrist=(660, 110))
+    person = _person(1, 640, 180)
+    person.keypoints = kp_far
+    # Bag inside the carry zone (chest height, above the feet line).
+    bag = _bag(91001, 640, 190, conf=0.9)
+    _ticks(det, [person], [bag], 10)
+    states = [m.state for m in det._pairs.values()]
+    assert states and all(s != EventState.BAG_CARRIED for s in states), (
+        f"bag without any wrist linkage must NOT reach CARRIED, got {states}"
+    )
+    # Control: with the wrist ON the bag, the carry proceeds.
+    det2 = LitteringEventDetector(_cfg())
+    kp_near = DetectorKeypoints(left_wrist=(640, 190), right_wrist=(660, 110))
+    person2 = _person(1, 640, 180)
+    person2.keypoints = kp_near
+    bag2 = _bag(91001, 640, 190, conf=0.9)
+    _ticks(det2, [person2], [bag2], 10)
+    states2 = [m.state for m in det2._pairs.values()]
+    assert states2 and any(s == EventState.BAG_CARRIED for s in states2), (
+        f"wrist-linked bag must reach CARRIED, got {states2}"
+    )

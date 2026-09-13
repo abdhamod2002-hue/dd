@@ -22,6 +22,71 @@ from typing import List, Optional, Tuple
 import numpy as np  # type: ignore
 
 
+def promote_handheld_color_class(
+    class_name: str,
+    bbox: Tuple[float, float, float, float],
+    person_boxes: List[Tuple[float, float, float, float]],
+) -> str:
+    """Promote HSV color_candidate_* → semantic waste class when handheld.
+
+    Production ColorBagTracker emits honest ``color_candidate_<hue>`` labels
+    which ``_is_semantic_waste`` correctly keeps as proposal-only. That made
+    REPAIR-P0-02 color admission dormant for every real HSV detection
+    (oracle IMG_5290: small dark bag invisible to the FSM while the dumpster
+    flooded proposals).
+
+    Promotion rules (all must hold vs the nearest person):
+      * class is color_candidate_*
+      * centroid in the lower body / carry band of the person
+      * bag area / person area in a handheld band (not dumpster-scale)
+    Unpromoted candidates stay proposal-only.
+    """
+    cls = str(class_name or "")
+    if not cls.startswith("color_candidate_") or not person_boxes:
+        return cls
+    x1, y1, x2, y2 = [float(v) for v in bbox]
+    bw = max(1.0, x2 - x1)
+    bh = max(1.0, y2 - y1)
+    area = bw * bh
+    cx = (x1 + x2) * 0.5
+    cy = (y1 + y2) * 0.5
+
+    best_ratio = None
+    for px1, py1, px2, py2 in person_boxes:
+        pw = max(1.0, float(px2) - float(px1))
+        ph = max(1.0, float(py2) - float(py1))
+        p_area = pw * ph
+        # Carry / lower-body band (hands hang in the lower ~65% of the torso box).
+        zx1 = float(px1) - 0.25 * pw
+        zx2 = float(px2) + 0.25 * pw
+        zy1 = float(py1) + 0.30 * ph
+        zy2 = float(py2) + 0.15 * ph
+        if not (zx1 <= cx <= zx2 and zy1 <= cy <= zy2):
+            continue
+        ratio = area / p_area
+        # Handheld waste: small vs person. Dumpster fragments near a walker are
+        # typically >> 0.15 of person area.
+        if ratio < 0.003 or ratio > 0.12:
+            continue
+        hue = cls[len("color_candidate_"):]
+        # Never promote white: shirts / walls dominate and steal one-bag-per-person
+        # ownership from the real handheld dark bag (IMG_5290 oracle).
+        if hue == "white":
+            continue
+        # Black/white achromatic masks are dumpster/shadow prone — stricter.
+        if hue == "black" and ratio > 0.08:
+            continue
+        # Red often matches shoes near the feet line — keep only small blobs.
+        if hue == "red" and (ratio > 0.06 or bh > 0.25 * ph):
+            continue
+        if best_ratio is None or ratio < best_ratio:
+            best_ratio = ratio
+            promoted = f"{hue}_waste_bag"
+    if best_ratio is None:
+        return cls
+    return promoted
+
+
 @dataclass
 class Detection:
     class_name: str
@@ -202,6 +267,10 @@ class YoloDetector:
         self.bag_conf = bag_conf
         self._color_tracker = None
         self._color_frame_index = 0
+        # Sticky semantic names for color tracks that already passed handheld
+        # promotion — after put-down the bag leaves the person carry band but
+        # must remain semantic so the FSM can finish ground→abandon.
+        self._color_promoted_names: dict = {}
         self._person_model = None
         self._litter_model = None
         self._bag_model = None
@@ -260,6 +329,7 @@ class YoloDetector:
     def reset_tracking(self) -> None:
         """Reset stateful fallback trackers between videos/camera sessions."""
         self._color_frame_index = 0
+        self._color_promoted_names = {}
         if self._color_tracker is not None:
             self._color_tracker.reset()
 
@@ -396,6 +466,7 @@ class YoloDetector:
             self._color_tracker = ColorBagTracker()
         if not persist:
             self._color_tracker.reset()
+            self._color_promoted_names = {}
         self._color_frame_index += 1
         try:
             dets = self._color_tracker.update(
@@ -409,9 +480,12 @@ class YoloDetector:
         for d in dets:
             # Keep color IDs in a separate raw namespace so they cannot collide
             # with ByteTrack litter IDs before the +10000 object offset.
+            class_name = promote_handheld_color_class(
+                str(d.class_name), d.bbox, person_boxes or []
+            )
             out.append(TrackedDetection(
                 track_id=50000 + int(d.track_id),
-                class_name=d.class_name,
+                class_name=class_name,
                 confidence=float(d.confidence),
                 bbox=d.bbox,
                 centroid=d.centroid,

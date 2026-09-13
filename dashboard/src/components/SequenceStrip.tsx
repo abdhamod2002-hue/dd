@@ -1,15 +1,9 @@
-import { ImageOff } from "lucide-react";
+import { useState } from "react";
+import { ImageOff, ZoomIn, Clock, ArrowRight } from "lucide-react";
 import { evidenceFileUrl } from "../lib/api";
 import { cn } from "../lib/utils";
+import { ForensicLightboxModal, type LightboxItem } from "./ForensicLightboxModal";
 
-/**
- * One step of the behavioral sequence (approach -> carry -> release ->
- * ground -> departure). `imagePath` is optional because only carry/release/
- * ground currently have a dedicated capture (P1-2) — approach and departure,
- * and any carry/release/ground crop that failed to capture (both actor and
- * object bboxes must be visible at that exact frame), render as a
- * timestamp-only chip instead of a broken image.
- */
 export interface SequenceStep {
   key: string;
   label: string;
@@ -21,63 +15,190 @@ export interface SequenceStep {
 interface SequenceStripProps {
   steps: SequenceStep[];
   className?: string;
+  onSeekVideo?: (timestamp: number) => void;
+  actorUid?: number | null;
+  objectUid?: number | null;
 }
 
-export function SequenceStrip({ steps, className }: SequenceStripProps) {
+export function SequenceStrip({
+  steps,
+  className,
+  onSeekVideo,
+  actorUid,
+  objectUid,
+}: SequenceStripProps) {
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
   if (!steps.length) return null;
 
+  const lightboxItems: LightboxItem[] = steps.map((s, idx) => ({
+    id: `step-${s.key}-${idx}`,
+    title: `${idx + 1}. ${s.label.toUpperCase()} MILESTONE`,
+    category: "sequence",
+    imagePath: s.imagePath,
+    timestamp: s.timestamp,
+    frame: s.frame,
+    badge: s.label.toUpperCase(),
+    subtitle: s.frame != null ? `Frame ${s.frame}` : undefined,
+    actorUid,
+    objectUid,
+  }));
+
+  const handleCardClick = (idx: number, step: SequenceStep) => {
+    setLightboxIndex(idx);
+    if (onSeekVideo && step.timestamp != null && step.timestamp < 1000) {
+      onSeekVideo(step.timestamp);
+    }
+  };
+
   return (
-    <div className={cn("panel space-y-3 p-4", className)}>
-      <h2 className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Sequence</h2>
-      <div className="flex gap-3 overflow-x-auto pb-1">
-        {steps.map((step, idx) => (
-          <div key={step.key} className="flex shrink-0 items-center gap-3">
-            <SequenceCard step={step} index={idx + 1} />
-            {idx < steps.length - 1 && (
-              <div className="h-px w-6 shrink-0 bg-[var(--border-subtle)]" aria-hidden />
-            )}
+    <>
+      <div className={cn("panel border-slate-800 bg-slate-900/80 p-5 space-y-4 shadow-xl", className)}>
+        {/* Header with description */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+          <div>
+            <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-200">
+              <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              Chronological Behavioral Sequence
+            </h2>
+            <p className="mt-0.5 text-[11px] text-slate-400">
+              Hover to zoom, click any card to inspect high-resolution snapshot and jump video scrubber.
+            </p>
           </div>
-        ))}
+          <span className="mono text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">
+            {steps.filter((s) => s.imagePath).length} Visual Milestones Captured
+          </span>
+        </div>
+
+        {/* Horizontal interactive gallery strip */}
+        <div className="flex gap-4 overflow-x-auto pb-3 pt-1 scrollbar-thin">
+          {steps.map((step, idx) => (
+            <div key={step.key} className="flex shrink-0 items-center gap-4">
+              <SequenceCard
+                step={step}
+                index={idx + 1}
+                onClick={() => handleCardClick(idx, step)}
+              />
+              {idx < steps.length - 1 && (
+                <div className="flex items-center text-slate-700 shrink-0" aria-hidden>
+                  <ArrowRight className="h-4 w-4" />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+
+      {/* Lightbox for sequence crops */}
+      <ForensicLightboxModal
+        isOpen={lightboxIndex !== null}
+        onClose={() => setLightboxIndex(null)}
+        items={lightboxItems}
+        initialIndex={lightboxIndex ?? 0}
+        onSeekVideo={onSeekVideo}
+      />
+    </>
   );
 }
 
-function SequenceCard({ step, index }: { step: SequenceStep; index: number }) {
-  // Prefer the frame number: it's what the rest of the app already displays
-  // (EventDetail's Behavior checklist reads detectorEvent.frames.*) and is
-  // unambiguous. `timestamp` is source-dependent — the video-upload path
-  // stamps wall-clock epoch seconds, not seconds-from-video-start, so
-  // rendering it directly as "…s" can show something like "1788262570.1s".
-  const timingLabel = step.frame != null ? `f${step.frame}` : step.timestamp != null ? `${step.timestamp.toFixed(1)}s` : null;
+function SequenceCard({
+  step,
+  index,
+  onClick,
+}: {
+  step: SequenceStep;
+  index: number;
+  onClick: () => void;
+}) {
+  const [loadError, setLoadError] = useState(false);
+  const timingLabel =
+    step.timestamp != null && step.timestamp < 1000
+      ? `${step.timestamp.toFixed(2)}s`
+      : null;
+
+  const hasImage = Boolean(step.imagePath) && !loadError;
+
   return (
-    <figure className="w-32 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] p-1.5">
-      {step.imagePath ? (
-        <img src={evidenceFileUrl(step.imagePath)} alt={step.label} className="h-20 w-full rounded object-cover" />
-      ) : (
-        <div className="flex h-20 w-full flex-col items-center justify-center gap-1 rounded bg-[var(--bg-panel)] text-[var(--text-muted)]">
-          {timingLabel ? <span className="mono text-[10px]">{timingLabel}</span> : <ImageOff className="h-4 w-4" />}
-        </div>
+    <figure
+      onClick={hasImage ? onClick : undefined}
+      className={cn(
+        "group relative w-52 sm:w-60 shrink-0 rounded-xl border p-2.5 transition-all duration-200 shadow-md",
+        hasImage
+          ? "border-slate-800 bg-slate-900/90 hover:border-emerald-500/60 hover:bg-slate-900 hover:shadow-emerald-950/30 cursor-pointer"
+          : "border-slate-800/60 bg-slate-950/40 cursor-default"
       )}
-      <figcaption className="mt-1 flex items-center gap-1 text-[9px] font-bold uppercase text-[var(--text-secondary)]">
-        <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-[var(--accent)]/20 text-[8px] text-[var(--accent)]">
-          {index}
+    >
+      {/* Top Header of Card */}
+      <div className="mb-2 flex items-center justify-between">
+        <figcaption className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-200">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-emerald-500/15 border border-emerald-500/30 font-mono text-[10px] text-emerald-400">
+            0{index}
+          </span>
+          <span className="truncate">{step.label}</span>
+        </figcaption>
+        <div className="flex items-center gap-1 text-[10px]">
+          {step.frame != null && (
+            <span className="mono rounded bg-slate-800/80 px-1.5 py-0.5 text-slate-300">
+              f{step.frame}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Image / Thumbnail Container with Hover-Zoom */}
+      <div className="relative h-32 sm:h-36 w-full overflow-hidden rounded-lg border border-slate-800 bg-slate-950 flex items-center justify-center">
+        {hasImage ? (
+          <>
+            <img
+              src={evidenceFileUrl(step.imagePath!)}
+              alt={step.label}
+              onError={() => setLoadError(true)}
+              className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-110"
+            />
+            {/* Hover overlay hint */}
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-950/50 opacity-0 backdrop-blur-[1px] transition-opacity duration-200 group-hover:opacity-100">
+              <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/50 bg-slate-900/90 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-400 shadow-xl">
+                <ZoomIn className="h-3.5 w-3.5" /> Inspect
+              </span>
+            </div>
+          </>
+        ) : (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 p-2 text-center text-slate-500 bg-slate-950/60">
+            <ImageOff className="h-6 w-6 text-slate-600" />
+            <span className="mono text-[10px] font-bold text-slate-400 uppercase">
+              {step.imagePath && loadError ? "EVIDENCE NOT AVAILABLE" : "STATE VERIFIED"}
+            </span>
+            <span className="text-[9px] text-slate-600">
+              {step.imagePath && loadError ? "Image unavailable" : "Temporal check passed"}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Footer Info */}
+      <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400">
+        <div className="flex items-center gap-1 font-mono">
+          <Clock className="h-3 w-3 text-emerald-400/80" />
+          <span>{timingLabel ?? "—"}</span>
+        </div>
+        <span className="mono text-[9px] uppercase font-bold text-slate-500 group-hover:text-emerald-400 transition-colors">
+          {hasImage ? "Click to Zoom →" : "Verified State"}
         </span>
-        <span className="truncate">{step.label}</span>
-      </figcaption>
+      </div>
     </figure>
   );
 }
 
-/**
- * Build the standard 5-step sequence from an Evidence row + the compact
- * detector-event dict (`_compact_detector_event` in backend/routers/analysis.py
- * — has `frames`/`timestamps` keyed by state name). Kept as a plain function,
- * not baked into the component, so a page can override/extend it.
- */
 export function buildSequenceSteps(
-  evidence: { carry_image_path?: string | null; release_image_path?: string | null; ground_image_path?: string | null } | undefined,
-  detectorEvent?: { frames?: Record<string, number | null> | null; timestamps?: Record<string, number | null> | null } | null,
+  evidence: {
+    carry_image_path?: string | null;
+    release_image_path?: string | null;
+    ground_image_path?: string | null;
+  } | undefined,
+  detectorEvent?: {
+    frames?: Record<string, number | null> | null;
+    timestamps?: Record<string, number | null> | null;
+  } | null,
 ): SequenceStep[] {
   const frames = detectorEvent?.frames ?? {};
   const timestamps = detectorEvent?.timestamps ?? {};

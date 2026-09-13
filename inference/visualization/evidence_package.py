@@ -50,6 +50,24 @@ def _find_entity(record: Dict[str, Any], kind: str, track_id: Any) -> Optional[D
     return None
 
 
+def _find_person(record: Dict[str, Any], track_id: Any, person_uid: Any) -> Optional[Dict[str, Any]]:
+    """Locate the event actor by STABLE person_uid first, then churned track_id.
+
+    Phase C: ByteTrack can churn track IDs across carry->release->ground.
+    Matching by stable person_uid guarantees we track the SAME physical actor.
+    """
+    items = record.get("persons", []) or []
+    if person_uid is not None:
+        for item in items:
+            if item.get("person_uid") is not None and str(item.get("person_uid")) == str(person_uid):
+                return item
+    if track_id is not None:
+        for item in items:
+            if str(item.get("track_id")) == str(track_id):
+                return item
+    return None
+
+
 def _find_object(record: Dict[str, Any], track_id: Any, object_uid: Any) -> Optional[Dict[str, Any]]:
     """Locate the event object by STABLE object_uid first, then churned track_id.
 
@@ -118,12 +136,28 @@ def _draw_label_once(cv2, crop: Any, text: str, color: Tuple[int, int, int]) -> 
     return crop
 
 
+def _is_valid_evidence_crop(crop: Any) -> bool:
+    """Ensure an evidence crop is valid (not empty, pitch black, or uniform)."""
+    if crop is None or getattr(crop, "size", 0) == 0:
+        return False
+    ch, cw = crop.shape[:2]
+    if ch < 8 or cw < 8:
+        return False
+    import numpy as np
+    mean_val = float(np.mean(crop))
+    std_val = float(np.std(crop))
+    # Reject pitch-black (mean < 3.0) or zero-variance/corrupt frames
+    if mean_val < 3.0 or std_val < 2.0:
+        return False
+    return True
+
+
 def _crop_to_file(cv2, frame, bbox: Tuple[float, float, float, float], path: str,
                   label: str = "", pad_ratio: float = _CROP_PAD_RATIO,
                   min_dim: int = _CROP_MIN_DIM) -> bool:
     """Clean evidence crop: margin, >=300px smallest dim, single label."""
-    crop = _crop_with_margin(cv2, frame, bbox, )
-    if crop is None:
+    crop = _crop_with_margin(cv2, frame, bbox)
+    if not _is_valid_evidence_crop(crop):
         return False
     ch, cw = crop.shape[:2]
     # Upscale if too small (but never downscale) so the smallest side >= 300px.
@@ -318,6 +352,7 @@ def write_event_evidence_package(
     actor_pid = event.get("event_actor_person_track_id")
     if actor_pid is None:
         actor_pid = event.get("person_track_id")
+    actor_puid = event.get("event_actor_person_uid")
     obj_tid = event.get("event_object_track_id")
     if obj_tid is None:
         obj_tid = event.get("bag_track_id")
@@ -339,7 +374,7 @@ def write_event_evidence_package(
         rec = _closest_record(frame_records, fr, None)
         if rec is None:
             continue
-        person = _find_entity(rec, "persons", actor_pid)
+        person = _find_person(rec, actor_pid, actor_puid)
         obj = _find_object(rec, obj_tid, obj_uid)
         if person and obj:
             best_record = rec
@@ -375,7 +410,7 @@ def write_event_evidence_package(
         if rec is None:
             logger.info("sequence image %s: no frame record near frame %s", label_prefix, fr)
             return None
-        person_e = _find_entity(rec, "persons", actor_pid)
+        person_e = _find_person(rec, actor_pid, actor_puid)
         obj_e = _find_object(rec, obj_tid, obj_uid)
         # Both actor and object must be visible for the sequence to be valid
         if not (person_e and obj_e and person_e.get("bbox") and obj_e.get("bbox")):
@@ -416,15 +451,15 @@ def write_event_evidence_package(
         label = str(obj_e.get("class_name") or "WASTE").upper()[:20]
         cv2.putText(snap_seq, label, (x1o, max(20, y1o - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (30, 30, 240), 2, cv2.LINE_AA)
         cv2.putText(snap_seq, label_prefix, (12, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
-        if cv2.imwrite(out_path, snap_seq):
+        if _is_valid_evidence_crop(snap_seq) and cv2.imwrite(out_path, snap_seq):
             return out_path
-        logger.warning("sequence image %s: cv2.imwrite failed for %s", label_prefix, out_path)
+        logger.warning("sequence image %s: image invalid or cv2.imwrite failed for %s", label_prefix, out_path)
         return None
 
     if best_record is not None:
         frame = cache.get(frame_number_used)
         if frame is not None:
-            person = _find_entity(best_record, "persons", actor_pid)
+            person = _find_person(best_record, actor_pid, actor_puid)
             obj = _find_object(best_record, obj_tid, obj_uid)
             # --- snapshot.jpg: ONE clean frame, ONLY the event's two boxes ---
             snap = frame.copy()
@@ -437,7 +472,7 @@ def write_event_evidence_package(
                 cv2.rectangle(snap, (x1, y1), (x2, y2), (30, 30, 240), 2)   # red = object
                 label = str(obj.get("class_name") or "WASTE").upper()[:20]
                 cv2.putText(snap, label, (x1, max(20, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (30, 30, 240), 2, cv2.LINE_AA)
-            snapshot_written = bool(cv2.imwrite(snapshot_path, snap))
+            snapshot_written = bool(_is_valid_evidence_crop(snap) and cv2.imwrite(snapshot_path, snap))
             # --- clean crops from the SAME original frame ---
             if person and person.get("bbox"):
                 _crop_to_file(cv2, frame, tuple(person["bbox"]), person_path, label="PERSON")

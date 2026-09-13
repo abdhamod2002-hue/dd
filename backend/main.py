@@ -90,9 +90,62 @@ def on_startup() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Health
+# Health / readiness (REPAIR-P0-06)
 # --------------------------------------------------------------------------- #
+_READINESS_CACHE: dict | None = None
+
+
+def _compute_readiness() -> dict:
+    """Fail readiness until tracker/detector imports and weight files exist."""
+    checks: dict = {}
+    ok = True
+    try:
+        import lap  # noqa: F401
+
+        checks["lap"] = {"ok": True, "detail": "importable"}
+    except Exception as exc:  # pragma: no cover - env dependent
+        ok = False
+        checks["lap"] = {"ok": False, "detail": str(exc)}
+
+    try:
+        import ultralytics  # noqa: F401
+
+        checks["ultralytics"] = {"ok": True, "detail": "importable"}
+    except Exception as exc:  # pragma: no cover
+        ok = False
+        checks["ultralytics"] = {"ok": False, "detail": str(exc)}
+
+    from pathlib import Path
+
+    weights_dir = Path(__file__).resolve().parents[1] / "inference" / "detection" / "weights"
+    for name in ("best.pt", "garbage_bag_v2.pt", "yolov8n.pt"):
+        path = weights_dir / name
+        present = path.is_file() and path.stat().st_size > 1000
+        checks[f"weights:{name}"] = {
+            "ok": present,
+            "detail": str(path) if present else f"missing:{path}",
+        }
+        if not present:
+            ok = False
+
+    return {"ready": ok, "checks": checks}
+
+
 @app.get("/health", tags=["health"])
 def health() -> dict:
-    """Simple liveness probe."""
+    """Liveness probe (process is up)."""
     return {"status": "ok"}
+
+
+@app.get("/ready", tags=["health"])
+def ready() -> dict:
+    """Readiness probe — do not accept analysis jobs until dependencies load."""
+    global _READINESS_CACHE
+    if _READINESS_CACHE is None:
+        _READINESS_CACHE = _compute_readiness()
+    body = {"status": "ready" if _READINESS_CACHE["ready"] else "not_ready", **_READINESS_CACHE}
+    if not _READINESS_CACHE["ready"]:
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse(status_code=503, content=body)
+    return body

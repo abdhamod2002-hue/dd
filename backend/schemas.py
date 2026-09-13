@@ -162,6 +162,21 @@ class VideoAnalysisJobBase(BaseModel):
     original_video_path: Optional[str] = None
     manifest_json: Optional[str] = None
     analysis_id: Optional[int] = None
+    # --- Live pipeline stage monitoring & telemetry ---
+    current_stage: Optional[str] = None
+    current_stage_status: Optional[str] = None
+    stage_step: Optional[int] = 1
+    total_stages: Optional[int] = 12
+    stage_name_display: Optional[str] = None
+    last_successful_stage: Optional[str] = None
+    stages: Optional[Any] = None
+    active_persons_count: Optional[int] = 0
+    unique_persons_count: Optional[int] = 0
+    total_person_track_ids: Optional[int] = 0
+    candidates_count: Optional[int] = 0
+    rejected_count: Optional[int] = 0
+    last_processed_frame: Optional[int] = None
+    last_update_time: Optional[str] = None
 
 
 class VideoAnalysisJobOut(VideoAnalysisJobBase):

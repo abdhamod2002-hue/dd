@@ -133,8 +133,11 @@ def test_adaptive_wrapper_rescues_threshold_brittle_sequence(tmp_path):
     assert confirmed[0].state == EventState.VIOLATION_CONFIRMED
     assert confirmed[0].evidence.get("adaptive_tier", 0) >= 1
 
-    # tier 0 (production config) must still reject it — learning input.
-    strict = AdaptiveEventDetector(load_event_config(), store=store, max_tiers=0)
+    # tier 0 (production config, no learned overrides) must still reject —
+    # too few carried frames vs production min_carried_frames. Use a fresh
+    # store so online learning from the adaptive run cannot loosen tier 0.
+    strict_store = LearningStore(path=str(tmp_path / "learning_strict.json"))
+    strict = AdaptiveEventDetector(load_event_config(), store=strict_store, max_tiers=0)
     assert len(_run_carried_release_ground(strict, carry_ticks=4)) == 0
 
     # learning recorded with tier attribution

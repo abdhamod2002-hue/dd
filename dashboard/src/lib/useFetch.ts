@@ -5,6 +5,9 @@ export function useFetch<T>(fetcher: () => Promise<T>, deps: unknown[] = [], pol
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
+
+  const refetch = () => setTick((t) => t + 1);
 
   useEffect(() => {
     let alive = true;
@@ -40,7 +43,7 @@ export function useFetch<T>(fetcher: () => Promise<T>, deps: unknown[] = [], pol
       if (intervalId) clearInterval(intervalId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [...deps, pollIntervalMs]);
+  }, [...deps, tick, pollIntervalMs]);
 
-  return { data, loading, error };
+  return { data, loading, error, refetch };
 }

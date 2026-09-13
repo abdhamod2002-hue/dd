@@ -122,32 +122,25 @@ def test_abandonment_confirms_when_person_stays():
 
 
 def test_fallback_only_full_sequence_confirms():
-    """Phase B strict semantics: COLOR_PROPOSAL / NOVELTY_PROPOSAL alone must NOT
-    become a semantic WASTE event. A sequence driven ONLY by color (source=color,
-    class trash_bag but via HSV) must NOT confirm — it lacks independent semantic
-    evidence. This is the correct post-Phase-B behavior; proposals are proposals,
-    not waste.
+    """REPAIR-P0-02: color-sourced bags (HSV path) MAY confirm with the
+    fallback confidence discount. Novelty / detected_object remain proposal-only.
     """
     detector = LitteringEventDetector(_fast_config())
     events = []
     t = 0.0
 
-    # Carry (color fallback).
     for _ in range(6):
         events.extend(detector.update([_person(1, 140, 180)],
                                       [_bag(10001, 140, 220, source="color", yolo_confirmed=False)], t))
         t += 0.1
-    # Release (color fallback).
     for y in (280, 340, 400):
         events.extend(detector.update([_person(1, 140, 180)],
                                       [_bag(10001, 140, y, source="color", yolo_confirmed=False)], t))
         t += 0.1
-    # Ground (color fallback).
     for _ in range(6):
         events.extend(detector.update([_person(1, 140, 180)],
                                       [_bag(10001, 140, 420, source="color", yolo_confirmed=False)], t))
         t += 0.1
-    # Departure (color fallback).
     for x in (360, 520, 680, 840):
         events.extend(detector.update([_person(1, x, 180)],
                                       [_bag(10001, 140, 420, source="color", yolo_confirmed=False)], t))
@@ -155,8 +148,47 @@ def test_fallback_only_full_sequence_confirms():
 
     events.extend(detector.finalize())
     confirmed = [e for e in events if e.confirmed]
-    # Strict semantics: pure color proposals must not confirm as WASTE.
-    assert len(confirmed) == 0, "COLOR_PROPOSAL alone must not become a semantic littering event"
+    assert len(confirmed) == 1, "color-sourced full littering sequence must confirm (discounted)"
+    ev = confirmed[0]
+    assert ev.fallback_used is True
+    assert ev.confidence >= 0.55
+
+
+def test_novelty_alone_never_confirms():
+    """Novelty proposals must never become littering events by themselves."""
+    detector = LitteringEventDetector(_fast_config())
+    events = []
+    t = 0.0
+    nov = DetectorBag(
+        track_id=10001,
+        bbox=(125, 205, 155, 235),
+        confidence=0.9,
+        class_name="detected_object",
+        source="novelty",
+        yolo_confirmed=False,
+    )
+    for _ in range(6):
+        events.extend(detector.update([_person(1, 140, 180)], [nov], t))
+        t += 0.1
+    for y in (280, 340, 400):
+        nov = DetectorBag(
+            track_id=10001,
+            bbox=(125, y - 15, 155, y + 15),
+            confidence=0.9,
+            class_name="detected_object",
+            source="novelty",
+            yolo_confirmed=False,
+        )
+        events.extend(detector.update([_person(1, 140, 180)], [nov], t))
+        t += 0.1
+    for _ in range(6):
+        events.extend(detector.update([_person(1, 140, 180)], [nov], t))
+        t += 0.1
+    for x in (360, 520, 680, 840):
+        events.extend(detector.update([_person(1, x, 180)], [nov], t))
+        t += 0.1
+    events.extend(detector.finalize())
+    assert not any(e.confirmed for e in events)
 
 
 def test_carry_only_incomplete_rejected():
@@ -269,20 +301,17 @@ def test_put_down_then_regrab_reclassified_picked_back_up():
     for y in (240, 260, 280):
         events.extend(detector.update([_person(1, 140, 180)], [_bag(10001, 140, y)], t))
         t += 0.1
-    # Ground: bag held stationary just below the release baseline (norm_distance
-    # stays under baseline*1.25 so this is the ABANDONMENT path, not a far-away
-    # DEPARTURE confirm). Reaches BAG_ON_GROUND.
-    for _ in range(6):
+    # Ground briefly (enough for BAG_ON_GROUND, not long enough to abandon).
+    for _ in range(3):
         events.extend(detector.update([_person(1, 140, 180)], [_bag(10001, 140, 300)], t))
         t += 0.1
-    # Regrab: bag lifted back up through the carry zone (moving + near) so the
-    # detector reads a sustained regrab and reverts to BAG_CARRIED.
-    for y in (280, 260, 240, 220, 220):
+    # Regrab immediately: lift well above the release centroid (y≈280 → y=160).
+    for y in (240, 200, 160, 150, 150):
         events.extend(detector.update([_person(1, 140, 180)], [_bag(10001, 140, y)], t))
         t += 0.1
-    # Keep carrying it away
+    # Keep carrying it (held above the ground plane)
     for _ in range(6):
-        events.extend(detector.update([_person(1, 140, 180)], [_bag(10001, 140, 220)], t))
+        events.extend(detector.update([_person(1, 140, 180)], [_bag(10001, 140, 160)], t))
         t += 0.1
 
     confirmed = [e for e in events if e.confirmed]
@@ -299,6 +328,137 @@ def test_put_down_then_regrab_reclassified_picked_back_up():
     assert len(picked) == 1
     # The reclassification must not be a generic NO_RELEASE_TRANSITION drop.
     assert all(e.reason != "NO_RELEASE_TRANSITION" for e in picked)
+
+
+def test_feet_putdown_outside_strict_band_releases():
+    """REPAIR-P0-01: bag centroid in near_ground_plane band but outside the
+    old 0.05·ph bag_below_feet band must unlatch carried and allow release
+    while the person stands still (the IMG_5117 failure class).
+    """
+    # Person cy=180, h=160 → feet y=260.
+    # near_ground_plane (0.40): y >= 260 - 64 = 196
+    # bag_below_feet (0.05):   y >= 260 - 8  = 252
+    detector = LitteringEventDetector(_fast_config())
+    events = []
+    t = 0.0
+
+    # Carry above the ground-plane band (y=185 < 196) with wrist nearby.
+    for _ in range(6):
+        events.extend(
+            detector.update([_person(1, 140, 180)], [_bag(10001, 140, 185)], t)
+        )
+        t += 0.1
+
+    # Put-down into the 0.05–0.40 gap (y=230): near_ground True, strict feet False.
+    # Move wrists away so wrist_near cannot keep carried latched.
+    standing = DetectorPerson(
+        track_id=1,
+        bbox=(100.0, 100.0, 180.0, 260.0),
+        confidence=0.9,
+        keypoints=DetectorKeypoints(
+            left_wrist=(170, 120),
+            right_wrist=(110, 120),
+            torso_center=(140, 160),
+        ),
+    )
+    for _ in range(8):
+        events.extend(detector.update([standing], [_bag(10001, 140, 230)], t))
+        t += 0.1
+
+    # Abandonment window while person stays near the grounded bag.
+    for _ in range(12):
+        events.extend(detector.update([standing], [_bag(10001, 140, 230)], t))
+        t += 0.1
+
+    events.extend(detector.finalize())
+    confirmed = [e for e in events if e.confirmed]
+    assert len(confirmed) == 1, (
+        f"expected confirmation for feet put-down in ground-plane gap; "
+        f"got confirmed={len(confirmed)} events={[ (e.state, e.reason) for e in events ]}"
+    )
+    assert confirmed[0].frames["release"] is not None
+    assert confirmed[0].frames["carry_start"] is not None
+
+
+def test_wrist_near_grounded_bag_still_releases():
+    """REPAIR-P0-01b: after a real carry, a bag resting on the ground plane
+    must release even if wrists remain geometrically near the bag (standing
+    over a put-down) — the failure mode that survived the first margin fix.
+    """
+    detector = LitteringEventDetector(_fast_config())
+    events = []
+    t = 0.0
+    # Carry above ground plane.
+    for _ in range(6):
+        events.extend(
+            detector.update([_person(1, 140, 180)], [_bag(10001, 140, 185)], t)
+        )
+        t += 0.1
+    # Put-down at y=230 with wrists still near the bag (default _person wrists).
+    for _ in range(15):
+        events.extend(
+            detector.update([_person(1, 140, 180)], [_bag(10001, 140, 230)], t)
+        )
+        t += 0.1
+    events.extend(detector.finalize())
+    confirmed = [e for e in events if e.confirmed]
+    assert len(confirmed) == 1, (
+        f"wrist-near grounded put-down must confirm; got "
+        f"{[(e.state, e.reason, e.evidence) for e in events if not e.confirmed][:3]}"
+    )
+
+
+def test_desync_putdown_while_bag_stays_in_ground_band():
+    """REPAIR-P0-01c: bag held in the ground-plane band for the whole carry
+    (never ever_off_ground) must still release when the person walked while
+    carrying and the bag later becomes stationary / unsynced.
+    """
+    detector = LitteringEventDetector(_fast_config())
+    events = []
+    t = 0.0
+    # Walk while carrying bag at y=220 (inside ground band for this geometry).
+    for x in (140, 160, 180, 200, 220, 240, 260, 280):
+        events.extend(
+            detector.update([_person(1, x, 180)], [_bag(10001, x, 220)], t)
+        )
+        t += 0.1
+    # Stop: bag stays put, person stands near it.
+    for _ in range(15):
+        events.extend(
+            detector.update([_person(1, 280, 180)], [_bag(10001, 220, 230)], t)
+        )
+        t += 0.1
+    events.extend(detector.finalize())
+    confirmed = [e for e in events if e.confirmed]
+    assert len(confirmed) == 1, (
+        f"desync put-down must confirm; got "
+        f"{[(e.state, e.reason) for e in events]}"
+    )
+
+
+def test_passerby_near_grounded_bag_no_event():
+    """REPAIR-P0-01 regression: standing next to a static grounded bag without
+    prior carry must not invent a littering event.
+    """
+    detector = LitteringEventDetector(_fast_config())
+    events = []
+    t = 0.0
+    standing = DetectorPerson(
+        track_id=1,
+        bbox=(100.0, 100.0, 180.0, 260.0),
+        confidence=0.9,
+        keypoints=DetectorKeypoints(
+            left_wrist=(170, 120),
+            right_wrist=(110, 120),
+            torso_center=(140, 160),
+        ),
+    )
+    for _ in range(20):
+        events.extend(detector.update([standing], [_bag(10001, 140, 230)], t))
+        t += 0.1
+    events.extend(detector.finalize())
+    confirmed = [e for e in events if e.confirmed]
+    assert len(confirmed) == 0
 
 
 def test_carry_only_still_rejected_as_no_release():

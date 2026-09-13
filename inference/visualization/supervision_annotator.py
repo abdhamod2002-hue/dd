@@ -50,11 +50,21 @@ ASSOC_COLOR = Color(r=120, g=255, b=80) if Color else None
 
 
 def _is_proposal(obj: Any) -> bool:
-    """Strict semantic split — mirrors tracking_visualizer.is_proposal."""
+    """Strict semantic split — mirrors littering_event_detector._is_semantic_waste.
+
+    Color-sourced bags are SEMANTIC (discounted), not proposals. Novelty /
+    color_candidate* / detected_object remain proposal-only and must never
+    render as WASTE.
+    """
     cls_low = str(getattr(obj, "class_name", "") or "").lower()
     src = str(getattr(obj, "source", "yolo") or "yolo").lower()
-    return src != "yolo" or cls_low.startswith("color_candidate") or cls_low == "detected_object"
-
+    if cls_low.startswith("color_candidate") or cls_low == "detected_object":
+        return True
+    if src == "novelty":
+        return True
+    if src in ("yolo", "color"):
+        return False
+    return True
 
 def frame_analysis_to_detections(analysis: Any) -> Tuple[Any, Any, Any]:
     """Convert FrameAnalysis persons/objects to sv.Detections triplet.

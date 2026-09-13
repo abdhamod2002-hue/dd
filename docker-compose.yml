@@ -51,6 +51,8 @@ services:
       - ./backend/uploaded_videos:/app/backend/uploaded_videos
       # Real data location: D:\W -> /data/W.
       - D:/W:/data/W:ro
+      # Validation corpus (REPAIR-P0-06 / P1-04): D:\22 iPhone clips.
+      - D:/22:/data/22:ro
     command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers 1
 
   dashboard:

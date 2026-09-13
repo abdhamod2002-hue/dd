@@ -140,10 +140,15 @@ def render_analysis_frame(
         for o in analysis.objects:
             x1, y1, x2, y2 = [int(v) for v in o.bbox]
             cls_low = str(o.class_name or "").lower()
+            src_low = str(o.source or "").lower()
+            # Align with semantic admission (REPAIR-P0-02 / P0-05): color is
+            # waste (discounted); novelty / color_candidate* / detected_object
+            # stay faint PROPOSAL and must never render as WASTE.
             is_proposal = (
-                str(o.source).lower() != "yolo"
-                or cls_low.startswith("color_candidate")
+                cls_low.startswith("color_candidate")
                 or cls_low == "detected_object"
+                or src_low == "novelty"
+                or src_low not in ("yolo", "color")
             )
             if is_proposal:
                 cv2.rectangle(out, (x1, y1), (x2, y2), COLOR_PROPOSAL, 1, cv2.LINE_AA)

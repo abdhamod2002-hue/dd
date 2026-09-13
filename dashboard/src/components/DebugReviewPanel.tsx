@@ -8,8 +8,7 @@ import { cn } from "../lib/utils";
  * Engineering-only content: raw original/analyzed video comparison (full
  * detection overlay, every tracked entity — not just the confirmed actor +
  * object), the frame timeline, and the raw evidence-score breakdown.
- * Collapsed by default via native <details> (no JS state, no layout jump on
- * first paint) so it never competes with the primary evidence above it.
+ * Bounded cleanly (max-h-[360px]) so it never stretches vertically.
  */
 interface DebugReviewPanelProps {
   originalVideoUrl?: string | null;
@@ -39,10 +38,10 @@ export function DebugReviewPanel({
   className,
 }: DebugReviewPanelProps) {
   return (
-    <details className={cn("panel group p-5", className)} open={defaultOpen}>
+    <details className={cn("panel border-slate-800 bg-slate-900/80 group p-5 shadow-xl", className)} open={defaultOpen}>
       <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-[var(--text-muted)]">
-          <FileVideo className="h-4 w-4" /> Engineering Debug / Technical Review
+        <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-300">
+          <FileVideo className="h-4 w-4 text-emerald-400" /> Engineering Debug / Technical Review
         </h2>
         <div className="flex items-center gap-2">
           {hasEventMarker && onFocusEvent && (
@@ -52,9 +51,9 @@ export function DebugReviewPanel({
                 e.preventDefault();
                 onFocusEvent();
               }}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--danger)]/40 bg-[var(--danger)]/10 px-3 py-1.5 text-[11px] font-bold uppercase text-[var(--danger)] hover:bg-[var(--danger)]/20"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-[11px] font-bold uppercase text-rose-400 hover:bg-rose-500/20 transition-colors"
             >
-              <Crosshair className="h-3.5 w-3.5" /> View Event
+              <Crosshair className="h-3.5 w-3.5" /> View Event Marker
             </button>
           )}
           {clipUrl && (
@@ -63,53 +62,76 @@ export function DebugReviewPanel({
               target="_blank"
               rel="noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] px-3 py-1.5 text-[11px] font-bold uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-[11px] font-bold uppercase text-slate-300 hover:text-white transition-colors"
             >
-              <Play className="h-3.5 w-3.5" /> Event Clip
+              <Play className="h-3.5 w-3.5 text-emerald-400" /> Event Clip
             </a>
           )}
-          <ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-muted)] transition-transform group-open:rotate-180" />
+          <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
         </div>
       </summary>
 
-      <div className="mt-4 space-y-4">
+      <div className="mt-4 space-y-4 border-t border-slate-800/80 pt-4">
         {originalVideoUrl || analyzedVideoUrl ? (
           <>
             <div className="grid gap-4 lg:grid-cols-2">
               {originalVideoUrl && (
-                <div className="space-y-2">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Original video</div>
-                  <video controls className="w-full rounded-lg border border-[var(--border-subtle)] bg-black object-contain" src={originalVideoUrl} />
+                <div className="space-y-1.5">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Original Source Video Feed
+                  </div>
+                  <div className="relative w-full h-[280px] sm:h-[320px] max-h-[360px] rounded-lg overflow-hidden bg-slate-950 border border-slate-800 flex items-center justify-center">
+                    <video
+                      controls
+                      playsInline
+                      className="w-full h-full max-h-[360px] object-contain bg-black"
+                      src={originalVideoUrl}
+                    />
+                  </div>
                 </div>
               )}
               {analyzedVideoUrl && (
-                <div className="space-y-2">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Detection overlays — all tracks</div>
-                  <video ref={analyzedVideoRef} controls className="w-full rounded-lg border border-[var(--border-subtle)] bg-black object-contain" src={analyzedVideoUrl} />
+                <div className="space-y-1.5">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    AI Detection Overlays — All Entity Tracks
+                  </div>
+                  <div className="relative w-full h-[280px] sm:h-[320px] max-h-[360px] rounded-lg overflow-hidden bg-slate-950 border border-slate-800 flex items-center justify-center">
+                    <video
+                      ref={analyzedVideoRef}
+                      controls
+                      playsInline
+                      className="w-full h-full max-h-[360px] object-contain bg-black"
+                      src={analyzedVideoUrl}
+                    />
+                  </div>
                 </div>
               )}
             </div>
             {markers.length > 0 && analyzedVideoRef && (
-              <div className="space-y-2">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Timeline — click to jump</div>
+              <div className="space-y-2 pt-2">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Timeline Scrub Bar — Click Milestone to Jump
+                </div>
                 <TimelineMarkers markers={markers} durationSec={durationSec} videoRef={analyzedVideoRef} />
               </div>
             )}
           </>
         ) : (
-          <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] p-6 text-center text-xs text-[var(--text-muted)]">
+          <div className="rounded-lg border border-slate-800 bg-slate-950 p-6 text-center text-xs text-slate-400">
             No analyzed video is linked to this event.
           </div>
         )}
 
         {evidenceScores && Object.keys(evidenceScores).length > 0 && (
-          <div>
-            <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Evidence score breakdown</div>
-            <div className="mono space-y-1 text-[11px] text-[var(--text-muted)]">
+          <div className="rounded-lg border border-slate-800 bg-slate-950 p-3.5 space-y-2">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Low-Level Evidence Score Breakdown
+            </div>
+            <div className="mono grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] text-slate-300">
               {Object.entries(evidenceScores).map(([k, v]) => (
-                <div key={k} className="flex justify-between rounded bg-[var(--bg-base)] px-2 py-1">
-                  <span>{k}</span>
-                  <span>{Number(v).toFixed(2)}</span>
+                <div key={k} className="flex justify-between rounded bg-slate-900 px-2.5 py-1.5 border border-slate-800/80">
+                  <span className="text-slate-400 capitalize">{k.replace(/_/g, " ")}:</span>
+                  <span className="font-bold text-emerald-400">{Number(v).toFixed(2)}</span>
                 </div>
               ))}
             </div>

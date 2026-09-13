@@ -30,6 +30,7 @@ class PersonAnalysis:
     trail: List[Tuple[float, float]] = field(default_factory=list)
     state: Optional[str] = None
     associated_object_id: Optional[int] = None
+    person_uid: Optional[int] = None  # stable logical id across track-id churn (Phase C)
 
 
 @dataclass
@@ -197,6 +198,8 @@ def build_frame_analysis(
         mem = pair_by_person.get(int(p.track_id))
         state_value = getattr(mem.state, "value", str(mem.state)) if mem is not None else None
         associated_object_id = int(mem.bag_id) if mem is not None else None
+        p_uid_getter = getattr(detector, "_person_uid_of", None) if detector is not None else None
+        person_uid = p_uid_getter(int(p.track_id)) if callable(p_uid_getter) else None
         person_analyses.append(
             PersonAnalysis(
                 track_id=int(p.track_id),
@@ -209,6 +212,7 @@ def build_frame_analysis(
                 trail=_trail_for(tracker, p.track_id),
                 state=state_value,
                 associated_object_id=associated_object_id,
+                person_uid=person_uid,
             )
         )
 

@@ -84,3 +84,46 @@ def test_boxes_follow_when_ids_stable_across_frames():
         p = np.all(np.abs(out.astype(int) - np.array(COLOR_PERSON)) <= 12, axis=2)
         o = np.all(np.abs(out.astype(int) - np.array(COLOR_OBJECT)) <= 12, axis=2)
         assert p.sum() > 20 and o.sum() > 20
+
+
+def test_color_source_draws_as_waste_not_proposal():
+    """REPAIR-P0-05: source=color is semantic waste; novelty stays proposal."""
+    from inference.visualization.tracking_visualizer import COLOR_PROPOSAL
+
+    frame = _blank(480, 640)
+    color_obj = ObjectAnalysis(
+        track_id=60002,
+        class_name="Garbage Bag",
+        bbox=(300, 200, 360, 280),
+        confidence=0.55,
+        source="color",
+    )
+    out = render_analysis_frame(
+        frame,
+        FrameAnalysis(
+            timestamp=0.0,
+            frame_number=1,
+            persons=[],
+            objects=[color_obj],
+        ),
+        show_hud=False,
+    )
+    object_px = np.all(np.abs(out.astype(int) - np.array(COLOR_OBJECT)) <= 12, axis=2)
+    assert object_px[200:280, 300:360].sum() > 20, "color bag must draw as waste"
+
+    prop = ObjectAnalysis(
+        track_id=60003,
+        class_name="detected_object",
+        bbox=(100, 100, 160, 160),
+        confidence=0.4,
+        source="novelty",
+    )
+    out2 = render_analysis_frame(
+        frame,
+        FrameAnalysis(timestamp=0.1, frame_number=2, persons=[], objects=[prop]),
+        show_hud=False,
+    )
+    waste_px = np.all(np.abs(out2.astype(int) - np.array(COLOR_OBJECT)) <= 12, axis=2)
+    prop_px = np.all(np.abs(out2.astype(int) - np.array(COLOR_PROPOSAL)) <= 12, axis=2)
+    assert waste_px[100:160, 100:160].sum() == 0, "novelty must not draw as WASTE"
+    assert prop_px[100:160, 100:160].sum() > 5, "novelty must draw as faint proposal"

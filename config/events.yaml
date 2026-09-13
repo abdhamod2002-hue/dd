@@ -21,7 +21,7 @@ STATIONARY_WINDOW_FRAMES: 3
 # LARGE bag a large real-pixel movement budget. Phase 1 measurement on the 5
 # test videos: 10px breaks IMG_5120, >=12px is safe on all 5. Set to null to
 # disable the gate entirely (pre-Phase-1 behaviour).
-STATIONARY_MAX_PIXEL_STEP: 12.0
+STATIONARY_MAX_PIXEL_STEP: 40.0
 
 # Keep a (person, bag) pair alive while the bag stays within this many
 # person-heights of the person. Prevents half-finished events from dying when
@@ -46,8 +46,20 @@ MIN_ABANDONMENT_FRAMES: 8
 # ---------------------------------------------------------------------------
 REQUIRE_GROUND_CONFIRMATION: true
 
-MIN_EVENT_CONFIDENCE: 0.80
-MAX_FALLBACK_TRACKER_GAP_FRAMES: 16
+# 2026-09-10 baseline regression fix: 0.80 gated out every real event
+# (real footage tops out ~0.6-0.7 evidence confidence). Operational baseline.
+MIN_EVENT_CONFIDENCE: 0.50
+# 2026-09-10: raised 16 -> 40 analysis-ticks (~5 s @8 fps) to tolerate
+# transient occlusions of the tracked object.
+MAX_FALLBACK_TRACKER_GAP_FRAMES: 40
+# Static ground-clutter suppression (2026-09-10): low-confidence objects that
+# are already on the ground and NOT near/carried by a person never enter the
+# FSM (kills stationary shelf/floor clutter like a 0.36-conf NESCAFE tin).
+MIN_CARRY_ORIGIN_CONFIDENCE: 0.40
+# CARRY-ORIGIN CONSTRAINT: with wrist pose keypoints available, an object can
+# only become CARRIED if a wrist/hand was spatially linked to it first.
+# Falls back to geometric evidence (containment / motion-sync) without pose.
+REQUIRE_CARRY_ORIGIN_LINK: true
 MAX_PAIR_AGE_FRAMES: 30
 MAX_OTHER_PERSON_CLOSER_FRAMES: 3
 
@@ -75,6 +87,11 @@ STATIONARY_GRACE_FRAMES: 3
 CARRY_MOTION_NORM_PX: 8.0
 CARRY_MOTION_SYNC_RATIO: 0.4
 BAG_MOVE_NORM: 0.05
+# Shared ground-plane margin (person-heights above feet line). Used for
+# near_ground_plane evidence AND carry-zone unlatch / feet put-down release
+# (REPAIR-P0-01). Must NOT diverge from BAG_MOVE_NORM by ~8x for the same
+# physical judgment — BAG_MOVE_NORM is anti-furniture handledness only.
+GROUND_PLANE_MARGIN_RATIO: 0.40
 RELEASE_DISTANCE_FLOOR: 0.15
 RELEASE_DISTANCE_ADAPTIVE_RATIO: 1.6
 
@@ -173,13 +190,20 @@ NOVELTY_MIN_CONFIDENCE: 0.30
 NOVELTY_ASSOC_MAX_DISTANCE: 250.0
 NOVELTY_CLASS_NAME: detected_object
 
-# --- P1-5: operator-configured bin zones (static cameras) -------------------
-# A polygon (NORMALIZED x/y in [0,1], origin top-left) drawn once per camera
-# during setup. While an object rests inside its camera's zone, it provides NO
-# ground-litter evidence: with require_ground_confirmation enabled the
-# candidate is rejected as BIN_ZONE_DEPOSIT (a bin deposit, not littering).
-# camera_id is optional (omit = zone applies to every camera); 'bbox' may be
-# used instead of 'polygon' as [x1, y1, x2, y2].
+# --- P1-5 / REPAIR-P1-03: operator-configured bin zones (static cameras) ---
+# HOW TO CONFIGURE (static CCTV only):
+# 1. Capture one reference frame from the camera.
+# 2. Mark the dumpster/bin opening as a normalized polygon (x,y in [0,1],
+#    origin top-left) or axis-aligned bbox [x1,y1,x2,y2].
+# 3. Uncomment bin_zones below and set camera_id to match the Camera.camera_id
+#    used by the live pipeline (or omit camera_id to apply to all cameras).
+# 4. Restart the backend so load_event_config() picks up the change.
+# 5. Validate with a known bin-deposit clip from D:\22 — expected rejection
+#    reason BIN_ZONE_DEPOSIT (not VIOLATION_CONFIRMED).
+#
+# While an object rests inside its camera's zone, it provides NO ground-litter
+# evidence: with REQUIRE_GROUND_CONFIRMATION enabled the candidate is rejected
+# as BIN_ZONE_DEPOSIT (a bin deposit, not littering).
 #
 # bin_zones:
 #   - camera_id: cam-01

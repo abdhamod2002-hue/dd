@@ -73,11 +73,54 @@ export interface EventReview {
   report: any | null;
 }
 
+export type JobStatus = "queued" | "processing" | "completed" | "failed" | "cancelled";
+
+export type PipelineStageStatus = "pending" | "running" | "completed" | "failed" | "skipped" | "cancelled";
+
+export interface PipelineStageInfo {
+  step: number;
+  name: string;
+  display_name: string;
+  status: PipelineStageStatus;
+  started_at: string | null;
+  completed_at: string | null;
+  error: string | null;
+  detail: Record<string, any> | null;
+}
+
+export interface PipelineTelemetryMetrics {
+  active_persons: number;
+  peak_concurrent_persons: number;
+  unique_persons_seen: number;
+  total_track_ids: number;
+  objects_detected: number;
+  candidates_count: number;
+  confirmed_events_count: number;
+  rejected_events_count: number;
+  active_fsm_state: string;
+  elapsed_sec: number;
+}
+
+export interface PipelineTelemetry {
+  current_stage: string;
+  current_stage_status: PipelineStageStatus;
+  current_step: number;
+  total_stages: number;
+  last_successful_stage: string | null;
+  last_processed_frame: number;
+  total_frames: number;
+  last_update_time: string;
+  error: string | null;
+  cancellation_requested: boolean;
+  stages: Record<string, PipelineStageInfo>;
+  metrics: PipelineTelemetryMetrics;
+}
+
 export interface VideoAnalysisJob {
   id: number;
   filename: string;
   original_filename: string;
-  status: "queued" | "processing" | "completed" | "failed";
+  status: JobStatus;
   duration_sec: number | null;
   total_frames: number | null;
   processed_frames: number;
@@ -95,6 +138,23 @@ export interface VideoAnalysisJob {
   original_video_path: string | null;
   manifest_json: string | null;
   analysis_id: number | null;
+  // Live stage & observability telemetry
+  current_stage?: string | null;
+  current_stage_status?: PipelineStageStatus | null;
+  stage_step?: number | null;
+  total_stages?: number | null;
+  stage_name_display?: string | null;
+  last_successful_stage?: string | null;
+  active_persons_count?: number | null;
+  unique_persons_count?: number | null;
+  total_person_track_ids?: number | null;
+  candidates_count?: number | null;
+  rejected_count?: number | null;
+  confirmed_count?: number | null;
+  last_processed_frame?: number | null;
+  last_update_time?: string | null;
+  cancellation_requested?: boolean | null;
+  stages?: Record<string, PipelineStageInfo> | null;
 }
 
 /** Per-analysis artifact manifest (backend/mirrors _build_analysis_manifest). */

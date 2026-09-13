@@ -82,6 +82,13 @@ class RejectionReason(str, Enum):
     # bin zone (static-camera polygon drawn once during setup), so the deposit
     # is a proper bin use, NOT ground littering.
     BIN_ZONE_DEPOSIT = "BIN_ZONE_DEPOSIT"
+    # Mandatory spec distinction "BIN VS GROUND": the waste was deposited into
+    # a container, dumpster, or trash receptacle (or disappeared into a bin opening
+    # above the ground line) rather than released onto the open ground plane.
+    BIN_DISPOSAL = "BIN_DISPOSAL"
+    # Object never physically left the actor (clothing latch / hip-attached
+    # color blob / held item). Not ground littering.
+    NO_PHYSICAL_SEPARATION = "NO_PHYSICAL_SEPARATION"
 
 
 @dataclass(frozen=True)
@@ -297,8 +304,22 @@ class EventDetectorConfig:
     auto_calibrate: bool = True
     calibration_frames: int = 24
 
-    min_event_confidence: float = 0.80
-    max_fallback_tracker_gap_frames: int = 16
+    # 2026-09-10 baseline regression fix: 0.80 gated out every real event
+    # (evidence.confidence tops out ~0.6-0.7 on genuine footage). 0.50 is the
+    # resilient operational baseline (0.45-0.50 band).
+    min_event_confidence: float = 0.50
+    # 2026-09-10: 16 analysis-ticks (~2 s @8 fps) rejected real events after
+    # brief occlusions; 40 ticks (~5 s) tolerates transient visual occlusions.
+    max_fallback_tracker_gap_frames: int = 40
+    # Static ground-clutter suppression: a bag whose confidence is below this
+    # AND that is not currently near/carried AND that sits on the ground plane
+    # never enters FSM pair memory (e.g. a stationary NESCAFE tin on the floor).
+    min_carry_origin_confidence: float = 0.40
+    # CARRY-ORIGIN CONSTRAINT: when wrist pose keypoints are available, an
+    # object can only transition to CARRIED if the person's wrist/hand was
+    # spatially linked to it (ever_wrist_near). Falls back to geometric
+    # evidence (containment / motion-synchrony) when no pose is available.
+    require_carry_origin_link: bool = True
     max_pair_age_frames: int = 30
     max_other_person_closer_frames: int = 3
 
@@ -482,23 +503,30 @@ class DetectorBag:
 
 
 def _is_semantic_waste(bag: DetectorBag) -> bool:
-    """Strict Layer 1 semantic distinction (Phase B).
+    """Layer 1 semantic admission (REPAIR-P0-02).
 
-    SEMANTIC_WASTE: YOLO semantic detections (source==yolo, class not a color
-    candidate nor novelty's detected_object). These are the ONLY objects that may
-    drive a littering event. COLOR_PROPOSAL (color_candidate_*) and
-    NOVELTY_PROPOSAL (detected_object) are pixel/change proposals — they may be
-    rendered in debug but must NEVER become event objects by themselves.
+    SEMANTIC_WASTE (may drive pairs / littering events):
+      - source == "yolo" with a real class (not color_candidate* / detected_object)
+      - source == "color" with a real class — discounted HSV path for bags
+        YOLO weights miss (e.g. yellow waste bag). Confidence is reduced via
+        fallback_frames in _compute_evidence.
+
+    PROPOSAL-ONLY (telemetry / debug render; NEVER event objects alone):
+      - source == "novelty"
+      - class detected_object
+      - class color_candidate*
     """
     src = str(getattr(bag, "source", "yolo") or "yolo").lower()
     cls = str(getattr(bag, "class_name", "") or "").lower()
-    if src != "yolo":
-        return False
     if cls.startswith("color_candidate"):
         return False
     if cls == "detected_object":
         return False
-    return True
+    if src == "novelty":
+        return False
+    if src in ("yolo", "color"):
+        return True
+    return False
 
 
 def _keypoints_from_any(kp: Any) -> Optional[DetectorKeypoints]:
@@ -649,8 +677,10 @@ class _PairInfo:
     person_moving: bool = False
     # when the person is moving, the bag shares the motion (carry evidence).
     moves_with_person: bool = True
-    # a wrist keypoint is near the bag centroid.
     wrist_near: bool = False
+    # Clutter/origin gating: wrist keypoints were actually available for this
+    # person this tick (lets the FSM distinguish "wrist far" from "no pose").
+    wrist_keypoints_available: bool = False
     # P1-5: the bag centroid is inside an operator-configured bin zone this
     # tick (static camera). Suppresses ground-litter evidence.
     in_bin_zone: bool = False
@@ -720,6 +750,10 @@ class _PairMemory:
     bin_zone_frames: int = 0
     release_person_centroid: Optional[Tuple[float, float]] = None
     release_person_height: float = 0.0
+    # Bag centroid at the moment of release — used to detect a true pick-up lift.
+    release_bag_centroid: Optional[Tuple[float, float]] = None
+    # Deepest bag centroid observed when first entering BAG_ON_GROUND.
+    ground_bag_centroid: Optional[Tuple[float, float]] = None
     bag_class: str = "trash_bag"
     emitted: bool = False
 
@@ -729,15 +763,47 @@ class _PairMemory:
     stationary_miss_streak: int = 0
     # Consecutive ticks matching the feet-put-down pattern.
     feet_release_streak: int = 0
+    # Consecutive ticks matching motion-desync put-down (bag left behind).
+    desync_release_streak: int = 0
+    # Consecutive stationary ticks while still in BAG_CARRIED after a walking
+    # carry — real put-downs often never enter near_ground_plane (perspective).
+    carried_stationary_streak: int = 0
+    # Frames after release where the bag is no longer motion-synced — allows
+    # BAG_ON_GROUND without the strict pixel-stationary gate (jittery tracks).
+    post_release_settle_streak: int = 0
+    # Consecutive post-ground lift+wrist ticks before accepting a reclaim.
+    # Short centroid flicker after put-down must not undo littering (IMG_5290).
+    regrab_lift_streak: int = 0
     # First bag centroid this pair ever saw — used by the anti-furniture gate
     # (an object that NEVER moved and was never wrist-near is furniture).
     first_bag_centroid: Optional[Tuple[float, float]] = None
     ever_wrist_near: bool = False
+    # CARRY-ORIGIN evidence (clutter suppression): accumulated handling cues.
+    ever_contained: bool = False            # bag bbox ever >=25% inside person bbox
+    ever_moved_with_person: bool = False    # bag ever moved in sync while carried
+    pose_ever_available: bool = False       # wrist keypoints ever present
+    # True once the bag was carried above the shared ground plane — required
+    # before crit_ground may fire (avoids false release for a low stationary hold).
+    ever_off_ground_while_carried: bool = False
+    # True once the person walked while this pair was carried — arms the
+    # desync put-down criterion for bags that stay in the ground-plane band
+    # for the entire carry (common with low handheld bags on iPhone footage).
+    ever_person_moved_while_carried: bool = False
     # Largest norm_distance observed while actually carried — the reference
     # for the per-pair adaptive release threshold.
     max_carry_norm_distance: float = 0.0
     # Adaptive release threshold, updated while carried.
     release_distance_threshold: float = 0.0
+    # Post-release physical separation evidence (clothing / held-item rejection).
+    # max_post_release_norm_distance: peak centroid separation after release.
+    # separated_frames: ticks after release with low containment OR bag outside
+    # the person box (true discard, not a hip-attached color latch).
+    max_post_release_norm_distance: float = 0.0
+    separated_frames: int = 0
+    # Peak bag displacement (pixels) from first_bag_centroid — clothing /
+    # static clutter associations barely move the "object" while the person
+    # walks away and inflates norm_distance.
+    max_bag_displacement_px: float = 0.0
 
     near_flags: Deque[bool] = field(default_factory=deque)
     carried_flags: Deque[bool] = field(default_factory=deque)
@@ -799,7 +865,7 @@ def _in_carrying_zone(person: DetectorPerson, bag: DetectorBag, cfg: EventDetect
     ph = _box_height(person.bbox)
     pw = _box_width(person.bbox)
     lower_start = py1 + ph * cfg.carrying_zone_vertical_start
-    lower_end = py2 + ph * 0.25
+    lower_end = py2 - ph * 0.05
     left = px1 - pw * cfg.carrying_zone_horizontal_margin
     right = px2 + pw * cfg.carrying_zone_horizontal_margin
     return lower_start <= by <= lower_end and left <= bx <= right
@@ -1141,7 +1207,13 @@ class LitteringEventDetector:
                 and info.person_uid == mem.person_uid
                 and info.bag_class != mem.bag_class
             ]
-            candidate = same_class[0] if same_class else (other[0] if other else None)
+            # REPAIR-P1-02: prefer highest association score; never silently
+            # steal a different-class object when a same-class candidate exists.
+            # Cross-class rebind is refused (safer than other[0] first-candidate).
+            if same_class:
+                candidate = max(same_class, key=lambda i: float(i.score))
+            else:
+                candidate = None
             if candidate is None:
                 continue
             # Keep the SAME stable key; only refresh the live track id.
@@ -1184,6 +1256,18 @@ class LitteringEventDetector:
                     else:
                         mem.bag_id = int(info.bag_id)
                 if mem is None:
+                    # STATIC GROUND-CLUTTER GATE: a low-confidence object that
+                    # is already resting on the ground plane and is NOT near or
+                    # carried by this person has no person origin — it must
+                    # never enter FSM pair memory (e.g. a stationary 0.36-conf
+                    # NESCAFE tin on the floor that people merely walk past).
+                    if (
+                        info.bag_confidence < self.config.min_carry_origin_confidence
+                        and not info.carried
+                        and not info.near
+                        and (info.bag_below_feet or info.near_ground_plane)
+                    ):
+                        continue
                     mem = self._create_pair(info, bag_uid=key[1])
                     self._pairs[key] = mem
                 active_keys.add(key)
@@ -1235,6 +1319,34 @@ class LitteringEventDetector:
                             mem.departure_ts = mem.departure_ts or timestamp
                             mem.state = EventState.PERSON_DEPARTED
                             emitted.extend(self._evaluate_confirmation(mem))
+
+            # REPAIR-ORACLE-5290: after put-down, handheld color promotion often
+            # stops (bag left the person carry band) so the pair loses its
+            # semantic bag while still BAG_RELEASED / BAG_ON_GROUND. Continue
+            # abandonment on missing-bag ticks so ground litter can confirm.
+            if (
+                not bag_present
+                and mem.state in (EventState.BAG_RELEASED, EventState.BAG_ON_GROUND)
+                and mem.release_frame is not None
+            ):
+                if mem.state == EventState.BAG_RELEASED:
+                    mem.post_release_settle_streak += 1
+                    need = max(2, int(cfg.min_stationary_frames) // 2)
+                    if mem.post_release_settle_streak >= need:
+                        mem.state = EventState.BAG_ON_GROUND
+                        mem.ground_frame = mem.ground_frame or frame_index
+                        mem.ground_ts = mem.ground_ts or timestamp
+                        mem.stationary_frames = max(mem.stationary_frames, need)
+                if mem.state == EventState.BAG_ON_GROUND:
+                    mem.abandonment_frames += 1
+                    mem.stationary_frames = max(
+                        mem.stationary_frames, mem.abandonment_frames
+                    )
+                    if mem.abandonment_frames >= cfg.min_abandonment_frames:
+                        mem.departure_frame = mem.departure_frame or frame_index
+                        mem.departure_ts = mem.departure_ts or timestamp
+                        mem.state = EventState.PERSON_DEPARTED
+                        emitted.extend(self._evaluate_confirmation(mem))
 
             if mem.missing_frames > cfg.max_pair_age_frames:
                 forced_reason = None
@@ -1429,12 +1541,30 @@ class LitteringEventDetector:
         pc = _centroid(person.bbox)
         bc = _centroid(bag.bbox)
         ph = _box_height(person.bbox)
+        pw = _box_width(person.bbox)
+
+        # Reject objects physically too large to be handheld litter items carried by a person.
+        # Dumpsters, trash bins, vehicles, benches, etc. are rejected immediately.
+        bw = _box_width(bag.bbox)
+        bh = _box_height(bag.bbox)
+        bag_area = bw * bh
+        person_area = max(1.0, pw * ph)
+        if bag_area > 0.40 * person_area or bw > 1.15 * pw or bh > 0.80 * ph:
+            return None
+        if bag_area > 65000:
+            return None
+
         distance = _dist(pc, bc)
         norm_distance = distance / ph
         containment = _intersection_over_bag(person.bbox, bag.bbox)
         carry_zone = _in_carrying_zone(person, bag, cfg)
         wrist_dist, wrist_hit = _wrist_distance(person, bag)
         wrist_near = wrist_hit and (wrist_dist / ph) <= cfg.near_distance_ratio
+        kp = person.keypoints
+        wrist_kp_available = bool(
+            kp is not None
+            and (kp.left_wrist is not None or kp.right_wrist is not None)
+        )
         stationary = self._is_stationary(bag, ph)
 
         # --- motion-synchrony cues --------------------------------------- #
@@ -1449,14 +1579,27 @@ class LitteringEventDetector:
         # strip the timestamps here.
         b_step = _mean_step([c for _, c in b_hist] if b_hist else None, 3)
         person_moving = p_step is not None and p_step > cfg.carry_motion_norm_px
-        if person_moving and b_step is not None:
-            moves_with_person = b_step >= cfg.carry_motion_sync_ratio * p_step
+        if person_moving:
+            if stationary:
+                moves_with_person = False
+            elif b_step is not None:
+                moves_with_person = b_step >= cfg.carry_motion_sync_ratio * p_step
+            else:
+                moves_with_person = False
         else:
-            # Person standing still (or no history yet): synchrony cannot
-            # contradict the carry, so it stays permissive.
-            moves_with_person = True
+            # Person standing still: only consider carried if wrist is near
+            # or the object is not stationary on the ground
+            if stationary and not wrist_near:
+                moves_with_person = False
+            else:
+                moves_with_person = True
 
         # Bag centre on the ground plane at the person's feet.
+        # Strict band (bag_move_norm) kept for telemetry / clutter heuristics.
+        # Carry unlatch and feet-put-down MUST use near_ground_plane
+        # (ground_plane_margin_ratio) — REPAIR-P0-01. Using the 0.05·ph band
+        # for carry exclusion permanently latched real put-downs (perspective
+        # + bbox padding) so release_score stayed 0 forever.
         bag_below_feet = bc[1] >= (person.bbox[3] - cfg.bag_move_norm * ph)
         near_ground_plane = bc[1] >= (
             person.bbox[3] - cfg.ground_plane_margin_ratio * ph
@@ -1471,14 +1614,18 @@ class LitteringEventDetector:
             )
 
         near = norm_distance <= cfg.near_distance_ratio or containment >= 0.25 or carry_zone
-        # Carried = handled by the hand, OR inside the body-relative carrying
-        # zone above the feet line, AND the object actually moves with the
-        # person when the person moves. The old rule treated any bag inside
-        # the positional zone as carried, which permanently latched a bag
-        # dropped at the person's feet (and any static object they stood
-        # next to) as "carried" — blocking release forever.
+        # Zone carry: above the ground plane. When wrist keypoints exist and
+        # the hands are away, also require the bag to be above the ground-plane
+        # band — a stationary object in the 0.05–0.40 gap with hands clear is a
+        # put-down, not a carry (REPAIR-P0-01). Without pose, keep the legacy
+        # zone path so mid-body carries still latch.
+        zone_carry = carry_zone and not bag_below_feet and not near_ground_plane
+        if wrist_kp_available and (not wrist_near):
+            zone_carry = False
+        if stationary and (not wrist_near):
+            zone_carry = False
         carried = (
-            (wrist_near or (carry_zone and not bag_below_feet))
+            (wrist_near or zone_carry)
             and norm_distance <= cfg.near_distance_ratio * 1.5
             and moves_with_person
         )
@@ -1541,6 +1688,7 @@ class LitteringEventDetector:
             person_moving=bool(person_moving),
             moves_with_person=bool(moves_with_person),
             wrist_near=bool(wrist_near),
+            wrist_keypoints_available=bool(wrist_kp_available),
         )
 
     def _select_primary_associations(self, infos: List[_PairInfo]) -> List[_PairInfo]:
@@ -1627,7 +1775,16 @@ class LitteringEventDetector:
             if len(infos_for_person) <= 1:
                 final.extend(infos_for_person)
                 continue
-            infos_for_person.sort(key=lambda x: (-x.score, x.norm_distance))
+            # Prefer YOLO-confirmed bags over color/novelty latches when the
+            # same actor has multiple overlapping associations — prevents a
+            # hip clothing color blob from stealing the pair from a real bag.
+            infos_for_person.sort(
+                key=lambda x: (
+                    0 if x.yolo_confirmed else 1,
+                    -x.score,
+                    x.norm_distance,
+                )
+            )
             kept = infos_for_person[0]
             final.append(kept)
             for other in infos_for_person[1:]:
@@ -1703,6 +1860,28 @@ class LitteringEventDetector:
             mem.first_bag_centroid = info.bag_centroid
         if info.wrist_near and info.carried:
             mem.ever_wrist_near = True
+        # CARRY-ORIGIN evidence (clutter suppression): accumulate handling cues
+        # so the CARRIED transition can verify the object truly originates
+        # from a person rather than being static ground clutter.
+        if info.containment >= 0.25:
+            mem.ever_contained = True
+        if info.carried and info.moves_with_person:
+            mem.ever_moved_with_person = True
+        if mem.first_bag_centroid is not None and info.bag_centroid is not None:
+            mem.max_bag_displacement_px = max(
+                mem.max_bag_displacement_px,
+                _dist(mem.first_bag_centroid, info.bag_centroid),
+            )
+        # Off-ground arming uses the WIDE ground-plane band: a carry that never
+        # left near_ground_plane (typical low hold at ~0.25·ph) must not arm
+        # standing crit_ground (that would false-release carry-only clips).
+        # Put-downs that began above the band (y < feet - 0.40·ph) still arm.
+        if info.carried and not info.near_ground_plane:
+            mem.ever_off_ground_while_carried = True
+        if info.carried and info.person_moving:
+            mem.ever_person_moved_while_carried = True
+        if info.wrist_keypoints_available:
+            mem.pose_ever_available = True
         person_motion = 0.0
         if mem.release_person_centroid is not None and mem.release_person_height > 0.0:
             person_motion = _dist(info.person_centroid, mem.release_person_centroid) / mem.release_person_height
@@ -1711,9 +1890,29 @@ class LitteringEventDetector:
             if mem.departure_baseline > 0.0
             else math.inf
         )
-        norm_departed = mem.release_frame is not None and info.norm_distance >= departure_threshold
-        motion_departed = mem.release_frame is not None and person_motion >= cfg.departure_motion_ratio
-        departed_now = norm_departed or motion_departed
+        # Distance growth alone is NOT departure while the actor stands still
+        # and the bag is still falling (false "departure" that beat regrab).
+        # Credit departure when the person moves away from the release pose,
+        # or when a settled/grounded bag's separation grows while the person
+        # is walking.
+        motion_departed = (
+            mem.release_frame is not None
+            and person_motion >= cfg.departure_motion_ratio
+        )
+        bag_settled_for_depart = bool(
+            info.stationary or mem.ground_frame is not None
+        )
+        norm_departed = (
+            mem.release_frame is not None
+            and info.norm_distance >= departure_threshold
+            and bag_settled_for_depart
+            and (
+                info.person_moving
+                or motion_departed
+                or person_motion >= 0.5 * cfg.departure_motion_ratio
+            )
+        )
+        departed_now = bool(norm_departed or motion_departed)
         mem.departed_flags.append(departed_now)
         mem.distances.append(info.distance)
         mem.norm_distances.append(info.norm_distance)
@@ -1742,7 +1941,57 @@ class LitteringEventDetector:
         smooth_carried = _smooth(mem.carried_flags, min_votes)
         smooth_stationary = _smooth(mem.stationary_flags, min_votes)
         smooth_departed = _smooth(mem.departed_flags, min_votes)
-        regrab_candidate = smooth_carried and not smooth_stationary
+        regrab_candidate = False
+        if mem.release_frame is not None and not info.stationary:
+            # REPAIR-P0-01d / ORACLE-5290: do NOT use near_ground_plane as the
+            # regrab gate. Require a real LIFT from the put-down pose.
+            # Before BAG_ON_GROUND, only a STRONG lift may reclaim — otherwise
+            # aggressive learned release thresholds cause release↔regrab
+            # flicker and finalize as PICKED_BACK_UP (container IMG_5290 miss).
+            # After ground, measure lift from the deeper of release vs current
+            # bag depth so a pick-up from the ground plane counts even when
+            # release_centroid was mid-drop.
+            lifted = False
+            strong_lift = False
+            if (
+                mem.release_bag_centroid is not None
+                and info.bag_centroid is not None
+                and mem.release_person_height > 1.0
+            ):
+                baseline_y = float(mem.release_bag_centroid[1])
+                if mem.ground_bag_centroid is not None:
+                    baseline_y = max(baseline_y, float(mem.ground_bag_centroid[1]))
+                upward = baseline_y - float(info.bag_centroid[1])
+                lifted = upward >= 0.15 * mem.release_person_height
+                strong_lift = upward >= 0.25 * mem.release_person_height
+            walking_reclaim = (
+                mem.ground_frame is not None
+                and info.person_moving
+                and info.moves_with_person
+                and (smooth_carried or info.wrist_near)
+            )
+            if mem.ground_frame is None:
+                regrab_candidate = bool(
+                    strong_lift and (smooth_carried or info.wrist_near or info.near)
+                )
+                mem.regrab_lift_streak = 0
+            else:
+                # Count pure strong_lift ticks toward the streak (bag may leave
+                # the ground before it re-enters the wrist band). Accept reclaim
+                # only after sustained lift — walking_reclaim alone used to fire
+                # on person-jitter + bag reassociation (Docker IMG_5290).
+                if strong_lift:
+                    mem.regrab_lift_streak += 1
+                else:
+                    mem.regrab_lift_streak = 0
+                sustained = mem.regrab_lift_streak >= max(2, min_votes)
+                associated = bool(
+                    smooth_carried
+                    or info.wrist_near
+                    or info.near
+                    or walking_reclaim
+                )
+                regrab_candidate = bool(sustained and associated)
         mem.regrab_flags.append(regrab_candidate)
         smooth_regrab = _smooth(mem.regrab_flags, min_votes)
 
@@ -1765,18 +2014,28 @@ class LitteringEventDetector:
                 max(cfg.release_distance_floor, cfg.release_distance_adaptive_ratio * mem.max_carry_norm_distance),
             )
         if mem.release_frame is not None:
-            # Ground-plane evidence: the resting object observed within the
-            # ground-plane margin of the actor's feet line (bin-vs-ground
-            # discrimination evidence; strict feet-line crosses only when the
-            # bag is at the actor's very feet, which real perspective often
-            # never shows even for genuine ground put-downs).
-            # P1-5: an operator-configured bin zone suppresses ground evidence
-            # — a resting position inside the zone is a BIN deposit, so it
-            # must never count toward ground-litter confirmation.
-            if info.in_bin_zone:
+            # Ground/bin evidence only while the bag is resting (stationary).
+            # Counting mid-flight frames lets a bin deposit accumulate false
+            # ground evidence while falling through the 0.40·ph band outside
+            # the zone polygon (P1-5 / multiperson bin regressions).
+            resting = bool(smooth_stationary or info.stationary)
+            if resting and info.in_bin_zone:
                 mem.bin_zone_frames += 1
-            if (info.near_ground_plane or info.bag_below_feet) and not info.in_bin_zone:
+            if (
+                resting
+                and (info.near_ground_plane or info.bag_below_feet)
+                and not info.in_bin_zone
+            ):
                 mem.ground_evidence_frames += 1
+            # Physical separation: clothing/hip color latches stay high-
+            # containment forever; a real discard leaves the person box.
+            mem.max_post_release_norm_distance = max(
+                mem.max_post_release_norm_distance, float(info.norm_distance)
+            )
+            if info.containment < 0.25 or info.norm_distance >= max(
+                cfg.release_distance_floor, mem.release_distance_threshold * 0.5
+            ):
+                mem.separated_frames += 1
             if smooth_stationary:
                 mem.stationary_frames += 1
                 mem.stationary_miss_streak = 0
@@ -1785,7 +2044,14 @@ class LitteringEventDetector:
                 # Grace: one or two flickery ticks (HSV jitter, tracker churn)
                 # must not erase a solid stationary streak.
                 mem.stationary_miss_streak += 1
-                if mem.stationary_miss_streak > cfg.stationary_grace_frames:
+                # Once the bag is ON_GROUND, do not wipe stationary evidence —
+                # post-drop color jitter regularly trips non-stationary and was
+                # erasing the settle credit before abandonment could confirm
+                # (IMG_5290 oracle: ground reached, PERSON_DID_NOT_DEPART).
+                if (
+                    mem.ground_frame is None
+                    and mem.stationary_miss_streak > cfg.stationary_grace_frames
+                ):
                     mem.stationary_frames = 0
             if smooth_departed:
                 mem.departed_frames += 1
@@ -1806,9 +2072,22 @@ class LitteringEventDetector:
 
         if mem.state == EventState.BAG_NEAR_PERSON:
             if smooth_carried and mem.carried_frames >= cfg.min_carried_frames:
-                mem.state = EventState.BAG_CARRIED
-                mem.carry_start_frame = mem.carry_start_frame or frame_index
-                mem.carry_start_ts = mem.carry_start_ts or timestamp
+                # CARRY-ORIGIN CONSTRAINT (clutter suppression): when wrist pose
+                # keypoints are available, the object must have been spatially
+                # linked to a wrist/hand before it may become CARRIED. Without
+                # pose availability, fall back to geometric handling evidence
+                # (containment in the person box, or motion-synchrony while
+                # carried) so production without MoveNet still works.
+                pose_available = mem.pose_ever_available
+                origin_ok = (
+                    mem.ever_wrist_near
+                    if pose_available
+                    else (mem.ever_wrist_near or mem.ever_moved_with_person)
+                )
+                if not cfg.require_carry_origin_link or origin_ok:
+                    mem.state = EventState.BAG_CARRIED
+                    mem.carry_start_frame = mem.carry_start_frame or frame_index
+                    mem.carry_start_ts = mem.carry_start_ts or timestamp
                 # Phase C: freeze the authoritative actor + object identity at the
                 # moment the carry is established (continuous temporal association
                 # is now locked). The object track id may churn later, but this is
@@ -1828,11 +2107,21 @@ class LitteringEventDetector:
                 mem.departure_baseline = max(1e-6, info.norm_distance)
                 mem.release_person_centroid = info.person_centroid
                 mem.release_person_height = info.person_height
+                mem.release_bag_centroid = info.bag_centroid
                 mem.max_departure_ratio = 0.0
                 mem.stationary_frames = 0
                 mem.stationary_miss_streak = 0
                 mem.departed_frames = 0
                 mem.feet_release_streak = 0
+                mem.desync_release_streak = 0
+                mem.carried_stationary_streak = 0
+                mem.post_release_settle_streak = 0
+                # REPAIR-P0-01b: after a ground put-down, wrist_near can keep
+                # smooth_carried True and immediately regrab the same bag.
+                # Clear the carry smoothing window so release can stick.
+                mem.carried_flags.clear()
+                for _ in range(max(1, cfg.smoothing_window)):
+                    mem.carried_flags.append(False)
 
         if mem.state == EventState.BAG_RELEASED:
             if smooth_regrab:
@@ -1844,12 +2133,67 @@ class LitteringEventDetector:
                 mem.departure_baseline = 0.0
                 mem.release_person_centroid = None
                 mem.release_person_height = 0.0
+                mem.release_bag_centroid = None
+                mem.ground_bag_centroid = None
                 mem.max_departure_ratio = 0.0
                 mem.reclaimed = True
+                mem.post_release_settle_streak = 0
+                mem.regrab_lift_streak = 0
+            elif mem.release_frame == frame_index:
+                # Same-tick fall-through after BAG_CARRIED→RELEASED: seed settle
+                # but do not complete BAG_ON_GROUND (protects regrab window).
+                left_behind = not (info.person_moving and info.moves_with_person)
+                if info.stationary or left_behind or info.near_ground_plane:
+                    mem.post_release_settle_streak = max(
+                        mem.post_release_settle_streak, 1
+                    )
             elif mem.stationary_frames >= cfg.min_stationary_frames:
                 mem.state = EventState.BAG_ON_GROUND
                 mem.ground_frame = frame_index
                 mem.ground_ts = timestamp
+                if info.bag_centroid is not None:
+                    mem.ground_bag_centroid = info.bag_centroid
+            else:
+                # After release, always make progress toward BAG_ON_GROUND.
+                # Real iPhone tracks often keep a false motion-sync and never
+                # trip the strict stationary gate — starving settle blocked
+                # IMG_5117. Faster when clearly left-behind; slow otherwise.
+                left_behind = not (info.person_moving and info.moves_with_person)
+                if info.stationary or left_behind:
+                    mem.post_release_settle_streak += 2
+                else:
+                    mem.post_release_settle_streak += 1
+                need = max(2, int(cfg.min_stationary_frames) // 2)
+                if mem.post_release_settle_streak >= need:
+                    mem.state = EventState.BAG_ON_GROUND
+                    mem.ground_frame = frame_index
+                    mem.ground_ts = timestamp
+                    if info.bag_centroid is not None:
+                        mem.ground_bag_centroid = info.bag_centroid
+                    mem.stationary_frames = max(
+                        mem.stationary_frames,
+                        min(mem.post_release_settle_streak, need),
+                    )
+                    # Ground evidence: strict band, or a slightly looser
+                    # perspective band (0.25·ph) used only at settle time so
+                    # elevated bin rests (~0.5-0.7·ph) stay BIN_DISPOSAL.
+                    loose_ground = False
+                    if (
+                        info.bag_centroid is not None
+                        and info.person_height > 1.0
+                    ):
+                        feet_y = (
+                            info.person_centroid[1] + 0.5 * info.person_height
+                        )
+                        loose_ground = info.bag_centroid[1] >= (
+                            feet_y - 0.25 * info.person_height
+                        )
+                    if not info.in_bin_zone and (
+                        info.near_ground_plane
+                        or info.bag_below_feet
+                        or loose_ground
+                    ):
+                        mem.ground_evidence_frames += 1
 
         if mem.state == EventState.BAG_ON_GROUND:
             if smooth_regrab:
@@ -1864,8 +2208,12 @@ class LitteringEventDetector:
                 mem.departure_baseline = 0.0
                 mem.release_person_centroid = None
                 mem.release_person_height = 0.0
+                mem.release_bag_centroid = None
+                mem.ground_bag_centroid = None
                 mem.max_departure_ratio = 0.0
                 mem.reclaimed = True
+                mem.post_release_settle_streak = 0
+                mem.regrab_lift_streak = 0
             elif mem.departed_frames >= cfg.min_departed_frames and mem.max_departure_ratio >= 1.0:
                 mem.state = EventState.PERSON_DEPARTED
                 mem.departure_frame = frame_index
@@ -1877,9 +2225,15 @@ class LitteringEventDetector:
                 # leaving an object behind (and not reclaiming it) IS the
                 # violation. Accumulate an abandonment timer and confirm once
                 # it is clear the object was abandoned.
-                if not smooth_carried:
+                # Pause while a reclaim lift is building (streak) or pending
+                # smooth_regrab — otherwise abandonment races the lift path.
+                if (
+                    not smooth_regrab
+                    and not regrab_candidate
+                    and mem.regrab_lift_streak == 0
+                ):
                     mem.abandonment_frames += 1
-                else:
+                elif smooth_regrab:
                     mem.abandonment_frames = 0
                 if mem.abandonment_frames >= cfg.min_abandonment_frames:
                     mem.state = EventState.PERSON_DEPARTED
@@ -1937,7 +2291,8 @@ class LitteringEventDetector:
         1. distance   — the classic: carried flipped false AND the object is
            beyond the per-pair adaptive threshold AND the separation grew
            (this tick or net over the release window — tolerates one jitter
-           tick mid-throw).
+           tick mid-throw). Fast-drop path: distance may fire with
+           ``max(2, min_carried_frames - 2)`` carried ticks.
         2. static-bag — the object reads stationary while the person walks
            and no wrist is near it. This catches the walk-past-the-dropped-
            bag geometry where the 2D centroid distance DECREASES (the person
@@ -1948,9 +2303,15 @@ class LitteringEventDetector:
            and the hand moved away, even while they stand still.
 
         Criteria 2/3 are gated by the anti-furniture check.
+        Alt-release paths (feet / ground / held-static / standing) must NOT
+        fire while the bag remains body-attached (high containment + tiny
+        separation) — that pattern is clothing / hip color latch, not discard.
         """
         cfg = self.config
-        if mem.carried_frames < cfg.min_carried_frames:
+        # Fast-drop: allow the classic distance criterion with a slightly
+        # reduced carry count so a brief carry→throw is not hard-blocked.
+        min_carry_distance = max(2, int(cfg.min_carried_frames) - 2)
+        if mem.carried_frames < min_carry_distance:
             return False
 
         # 1) classic distance-based release, windowed + adaptive threshold.
@@ -1965,12 +2326,27 @@ class LitteringEventDetector:
             and info.norm_distance >= mem.release_distance_threshold
             and (distance_increasing or grew_over_window)
         )
+        if crit_distance and mem.carried_frames >= min_carry_distance:
+            return True
+        # Remaining alt-release criteria still require the full carry count.
+        if mem.carried_frames < cfg.min_carried_frames:
+            return False
 
         handled = self._bag_was_handled(mem, info)
 
+        # Body-attached latch: bag still mostly inside the person box and
+        # never reached a meaningful release distance. Alt criteria must not
+        # invent a "release" for clothing / pocket / hip color blobs.
+        still_attached = (
+            info.containment >= 0.25
+            and info.norm_distance
+            < max(cfg.release_distance_floor, mem.release_distance_threshold * 0.5)
+        )
+
         # 2) static-bag put-down while the person moves away
         crit_static = (
-            not smooth_carried
+            not still_attached
+            and not smooth_carried
             and info.stationary
             and not info.carried
             and info.person_moving
@@ -1978,19 +2354,122 @@ class LitteringEventDetector:
             and handled
         )
 
-        # 3) feet put-down streak (works while the person stands still)
+        # 3) feet put-down streak (works while the person stands still).
+        # Use near_ground_plane (REPAIR-P0-01) so real camera put-downs that
+        # never enter the 0.05·ph band can still release while standing.
         if (
-            info.bag_below_feet
+            info.near_ground_plane
             and not info.wrist_near
             and not info.carried
             and info.stationary
+            and not still_attached
         ):
             mem.feet_release_streak += 1
         else:
             mem.feet_release_streak = 0
-        crit_feet = handled and mem.feet_release_streak >= cfg.feet_release_frames
+        crit_feet = (
+            handled
+            and not still_attached
+            and mem.feet_release_streak >= cfg.feet_release_frames
+        )
 
-        return bool(crit_distance or crit_static or crit_feet)
+        # 4) grounded put-down while wrist geometry still looks like a carry.
+        # Requires a prior carry ABOVE the ground-plane band so a low
+        # stationary hold never false-releases (carry-only → NO_RELEASE).
+        bag_left_behind = info.person_moving and not info.moves_with_person
+        stopped_after_walk_with_resting_bag = (
+            mem.ever_person_moved_while_carried
+            and (not info.person_moving)
+            and info.stationary
+        )
+        bag_unsynced = bag_left_behind or stopped_after_walk_with_resting_bag
+        crit_ground = (
+            handled
+            and not still_attached
+            and mem.ever_off_ground_while_carried
+            and info.near_ground_plane
+            and info.stationary
+            and bag_unsynced
+            and mem.carried_frames >= cfg.min_carried_frames
+        )
+        # Standing put-down after a real above-band carry: person never needs
+        # to walk. Covers wrist-near grounded bags (standing over a drop).
+        crit_standing_ground = (
+            handled
+            and not still_attached
+            and mem.ever_off_ground_while_carried
+            and info.near_ground_plane
+            and info.stationary
+            and (not info.person_moving)
+            and mem.carried_stationary_streak
+            >= max(2, int(cfg.feet_release_frames))
+            and mem.carried_frames >= cfg.min_carried_frames
+        )
+
+        # 5) motion-desync put-down (streaked). Real tracks often never satisfy
+        # the strict stationary gate (centroid jitter) — so also accept
+        # "person still walking, bag no longer motion-synced" as leave-behind.
+        person_stopped_with_static_bag = (
+            mem.ever_person_moved_while_carried
+            and (not info.person_moving)
+            and info.stationary
+        )
+        desync_tick = (
+            handled
+            and not still_attached
+            and mem.ever_person_moved_while_carried
+            and mem.carried_frames >= cfg.min_carried_frames
+            and (
+                info.near_ground_plane
+                or info.norm_distance >= mem.release_distance_threshold * 0.5
+            )
+            and (person_stopped_with_static_bag or bag_left_behind)
+        )
+        if desync_tick:
+            mem.desync_release_streak += 1
+        else:
+            mem.desync_release_streak = 0
+        crit_desync = mem.desync_release_streak >= max(2, cfg.feet_release_frames)
+
+        # 6) stationary-after-walk put-down: after the person walked while
+        # carrying, the bag goes stationary for a sustained streak while the
+        # FSM is still wrist-latched. Real iPhone put-downs often never enter
+        # near_ground_plane (bag projects above the feet line). Require either
+        # ground-plane evidence, a modest separation, or the person stopping.
+        # Stationary streak while still latched as carried — arms standing
+        # put-down / held-static release after a real above-band or walking carry.
+        if info.stationary and (
+            mem.ever_person_moved_while_carried or mem.ever_off_ground_while_carried
+        ):
+            mem.carried_stationary_streak += 1
+        else:
+            mem.carried_stationary_streak = 0
+        crit_held_static = (
+            handled
+            and not still_attached
+            and mem.ever_person_moved_while_carried
+            and mem.carried_stationary_streak
+            >= max(2, int(cfg.feet_release_frames))
+            and mem.carried_frames >= cfg.min_carried_frames
+            and (
+                info.near_ground_plane
+                or info.norm_distance >= mem.release_distance_threshold * 0.35
+                or (
+                    (not info.person_moving)
+                    and info.stationary
+                    and not info.wrist_near
+                )
+            )
+        )
+
+        return bool(
+            crit_static
+            or crit_feet
+            or crit_ground
+            or crit_standing_ground
+            or crit_desync
+            or crit_held_static
+        )
 
     def _compute_evidence(self, mem: _PairMemory) -> EventEvidence:
         cfg = self.config
@@ -2021,10 +2500,8 @@ class LitteringEventDetector:
         # the yellow waste-bag class that best.pt does NOT contain. It must NOT
         # be zeroed: that would structurally disable every event. We apply a
         # modest, transparent confidence discount and surface fallback_used.
-        # P2-2: DORMANT today — _is_semantic_waste() admits only source=="yolo"
-        # bags into pairs, so mem.fallback_frames can never increment in the
-        # live FSM. Kept so the mechanism is correct if a deliberate
-        # fallback-confirmation path is ever approved.
+        # REPAIR-P0-02: color is admitted by _is_semantic_waste again, so
+        # fallback_frames increments and this discount is LIVE.
         fallback_factor = 1.0
         if mem.fallback_frames > 0:
             fallback_factor = 0.95 if mem.yolo_reconfirmed_after_fallback else 0.90
@@ -2070,7 +2547,19 @@ class LitteringEventDetector:
             return RejectionReason.LOW_BAG_CONFIDENCE.value
         if mem.person_seen_frames < cfg.min_carried_frames:
             return RejectionReason.PERSON_NOT_DETECTED.value
-        if mem.carried_frames < cfg.min_carried_frames:
+        # Fast-drop: a clear physical separation may confirm with slightly
+        # fewer carried ticks than the full min_carried_frames bar.
+        min_carry_for_confirm = max(2, int(cfg.min_carried_frames) - 2)
+        sep_floor_early = max(cfg.release_distance_floor, 0.08)
+        fast_drop_ok = (
+            mem.carried_frames >= min_carry_for_confirm
+            and mem.release_frame is not None
+            and (
+                mem.max_post_release_norm_distance >= sep_floor_early
+                or mem.separated_frames >= max(2, int(cfg.feet_release_frames))
+            )
+        )
+        if mem.carried_frames < cfg.min_carried_frames and not fast_drop_ok:
             return RejectionReason.NOT_ENOUGH_CARRIED_FRAMES.value
         if mem.release_frame is None:
             return RejectionReason.NO_RELEASE_TRANSITION.value
@@ -2092,15 +2581,26 @@ class LitteringEventDetector:
         if mem.ambiguous_frames > max(2, cfg.smoothing_window):
             return RejectionReason.ASSOCIATION_AMBIGUOUS.value
         # BIN VS GROUND gate: a candidate whose resting location was never
-        # observed on the actor's ground plane is ambiguous (it may be inside
-        # a trash container) -> no confident violation.
-        # P1-5: when the resting position WAS observed inside an
-        # operator-configured bin zone, the deposit is a bin use, not ground
-        # littering — report the precise reason instead of generic ambiguity.
+        # observed on the actor's ground plane is a bin/container deposit, not
+        # ground littering -> report BIN_DISPOSAL or operator bin-zone deposit.
         if cfg.require_ground_confirmation and mem.ground_evidence_frames <= 0:
             if mem.bin_zone_frames > 0:
                 return RejectionReason.BIN_ZONE_DEPOSIT.value
-            return RejectionReason.NO_CONFIDENT_EVENT.value
+            return RejectionReason.BIN_DISPOSAL.value
+        # Physical separation gate: an object that was contained in the person
+        # box (clothing / hip latch) but never left the body after "release"
+        # is not ground littering. Also reject static color/clutter blobs that
+        # never moved while the person walked away (inflated norm_distance).
+        sep_floor = max(cfg.release_distance_floor, 0.08)
+        physically_separated = (
+            mem.max_post_release_norm_distance >= sep_floor
+            and mem.separated_frames >= max(2, int(cfg.feet_release_frames))
+        )
+        bag_actually_moved = mem.max_bag_displacement_px >= (
+            max(0.12, cfg.bag_move_norm * 2.0) * max(mem.release_person_height, 80.0)
+        )
+        if mem.ever_contained and (not physically_separated or not bag_actually_moved):
+            return RejectionReason.NO_PHYSICAL_SEPARATION.value
         if evidence.confidence < cfg.min_event_confidence:
             return RejectionReason.EVENT_CONFIDENCE_TOO_LOW.value
         return None
@@ -2132,16 +2632,24 @@ class LitteringEventDetector:
         if mem.carried_frames <= 0:
             return []
         evidence = self._compute_evidence(mem)
-        reason = forced_reason or self._rejection_reason(mem, evidence) or RejectionReason.EVENT_CONFIDENCE_TOO_LOW.value
-        # Regrab protection (explicit reclassification): if the person reclaimed
-        # a released/grounded bag and the pair ends as a NON-violation (the bag
-        # was never re-abandoned), reclassify it as PICKED_BACK_UP (NOT_ABANDONED)
-        # instead of a generic NO_RELEASE_TRANSITION rejection. This records the
-        # avoided false positive in the audit trail. A forced reason (e.g. track
-        # loss) takes precedence and is left untouched.
-        if forced_reason is None and mem.reclaimed and mem.release_frame is None:
-            mem.state = EventState.PICKED_BACK_UP
-            reason = RejectionReason.PICKED_BACK_UP.value
+        if forced_reason is None:
+            reason = self._rejection_reason(mem, evidence)
+            if reason is None:
+                # End-of-stream with a fully satisfied evidence gate: confirm.
+                # Without this, standing put-downs that never trip the
+                # abandonment/departure transition were rejected as
+                # EVENT_CONFIDENCE_TOO_LOW despite confidence >> threshold.
+                return self._evaluate_confirmation(mem)
+            # Regrab protection (explicit reclassification): if the person reclaimed
+            # a released/grounded bag and the pair ends as a NON-violation (the bag
+            # was never re-abandoned), reclassify it as PICKED_BACK_UP (NOT_ABANDONED)
+            # instead of a generic NO_RELEASE_TRANSITION rejection. This records the
+            # avoided false positive in the audit trail.
+            if mem.reclaimed and mem.release_frame is None:
+                mem.state = EventState.PICKED_BACK_UP
+                reason = RejectionReason.PICKED_BACK_UP.value
+        else:
+            reason = forced_reason
         mem.emitted = True
         event = self._make_event(mem, evidence, confirmed=False, reason=reason)
         self.rejected_events.append(event)
@@ -2204,6 +2712,12 @@ class LitteringEventDetector:
                 ),
                 "ground_evidence_frames": mem.ground_evidence_frames,
                 "bin_zone_frames": mem.bin_zone_frames,
+                "max_post_release_norm_distance": round(
+                    mem.max_post_release_norm_distance, 4
+                ),
+                "separated_frames": mem.separated_frames,
+                "ever_contained": mem.ever_contained,
+                "max_bag_displacement_px": round(mem.max_bag_displacement_px, 2),
                 # P1-8: disclose the EFFECTIVE runtime thresholds that produced
                 # this decision (base YAML + any adaptive learned overrides).
                 "active_thresholds": {

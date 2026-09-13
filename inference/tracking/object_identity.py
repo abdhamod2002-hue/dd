@@ -66,6 +66,11 @@ class ObjectIdentityManager:
         self.max_age = int(max_age_frames)
         self.frame = 0
 
+    @property
+    def _uids(self) -> Dict[int, Dict]:
+        """Alias for records dict for compatibility with introspection/telemetry."""
+        return self.records
+
     def update(self, detections: List[Tuple[str, Tuple, Tuple]]) -> Dict[int, int]:
         """Match a batch of detections (class, bbox, centroid) to stable uids.
 
