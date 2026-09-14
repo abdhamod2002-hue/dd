@@ -8,6 +8,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.database import create_all
 from backend.routers import analysis, cameras, events, evidence, statistics, status, stream
 
+# Seeds / cudnn / TF determinism as early as possible in the worker process.
+try:
+    from inference.runtime_determinism import configure_determinism, determinism_enabled_from_env
+
+    if determinism_enabled_from_env():
+        configure_determinism(0)
+except Exception:
+    pass
+
 app = FastAPI(
     title="AI Littering Detection API",
     description=(

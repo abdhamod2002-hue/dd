@@ -88,9 +88,16 @@ def render_analysis_frame(
     event = event or analysis.event
 
     # Trails first, so boxes remain readable.
+    from inference.visualization.supervision_annotator import (
+        _draw_proposals_enabled,
+        _is_proposal,
+    )
+    draw_proposals = _draw_proposals_enabled()
     for p in analysis.persons:
         _draw_trail(cv2, out, p.trail, COLOR_TRAIL_PERSON, s["thickness"])
     for o in analysis.objects:
+        if _is_proposal(o) and not draw_proposals:
+            continue
         _draw_trail(cv2, out, o.trail, COLOR_TRAIL_OBJECT, s["thickness"])
 
     # Association lines only when the production detector reports a real pair.
@@ -151,6 +158,9 @@ def render_analysis_frame(
                 or src_low not in ("yolo", "color")
             )
             if is_proposal:
+                # Section 4: hide novelty/color_candidate clutter on long videos.
+                if not draw_proposals:
+                    continue
                 cv2.rectangle(out, (x1, y1), (x2, y2), COLOR_PROPOSAL, 1, cv2.LINE_AA)
                 _draw_label(cv2, out, f"PROPOSAL {o.class_name} #{o.track_id}", x1, y1 - 4, s["small_scale"] * 0.85, COLOR_PROPOSAL, 1)
                 continue

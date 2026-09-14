@@ -1,0 +1,117 @@
+{
+  "version": "1.0",
+  "frozen": true,
+  "frozen_at": "2026-09-13",
+  "description": "Motared frozen behavioural test set (Section 5c). Labels are operator-validated from REAL_WORLD_VALIDATION_REPORT + product ground truth. Do not silently edit labels — bump version and document the change.",
+  "video_roots": [
+    "/data/22",
+    "D:/22",
+    "backend/uploaded_videos"
+  ],
+  "protocol": {
+    "name": "MIVIA-IWDD-style temporal event matching",
+    "reference": "https://github.com/MiviaLab/IllegalWasteDumping",
+    "delta_t_sec": 3.0,
+    "t_max_sec": 10.0,
+    "notes": "A predicted confirmation within Δt of the labelled event time is a TP. Predictions farther than T_max from any GT event are FP. Unmatched GT events are FN. Clip-level P/R/F1 also reported (LITTER vs hard-negative)."
+  },
+  "clips": [
+    {
+      "id": "IMG_5117",
+      "file": "IMG_5117.MOV",
+      "label": "LITTER",
+      "scenario": "ground_litter_close",
+      "event_time_sec": 3.47,
+      "notes": "Yellow bag ground litter; primary short positive"
+    },
+    {
+      "id": "IMG_5290",
+      "file": "IMG_5290.MOV",
+      "label": "LITTER",
+      "scenario": "ground_litter_dumpster_scene",
+      "event_time_sec": 16.27,
+      "notes": "Dark handheld bag; dumpster in scene — must not confirm bin disposal"
+    },
+    {
+      "id": "IMG_5295",
+      "file": "IMG_5295.MOV",
+      "label": "LITTER",
+      "scenario": "ground_litter_bottle",
+      "event_time_sec": 21.88,
+      "notes": "Clear bottle put-down past dumpster"
+    },
+    {
+      "id": "IMG_5119",
+      "file": "IMG_5119.MOV",
+      "label": "LITTER",
+      "scenario": "ground_litter_depart",
+      "event_time_sec": 9.35,
+      "notes": "Carry, drop, depart near end"
+    },
+    {
+      "id": "IMG_5118",
+      "file": "IMG_5118.MOV",
+      "label": "LITTER",
+      "scenario": "multiperson_selective",
+      "event_time_sec": 8.01,
+      "notes": "Hard positive: multi-person; only litterer may be accused"
+    },
+    {
+      "id": "M",
+      "file": "M.MOV",
+      "label": "LITTER",
+      "scenario": "ground_litter_street",
+      "event_time_sec": 5.34,
+      "notes": "Drop near parked car then depart"
+    },
+    {
+      "id": "A",
+      "file": "A.MOV",
+      "label": "LITTER",
+      "scenario": "late_entry_litter",
+      "event_time_sec": 21.48,
+      "notes": "Empty street until ~18s then litter"
+    },
+    {
+      "id": "IMG_5306",
+      "file": "IMG_5306.MOV",
+      "label": "LITTER",
+      "scenario": "long_clip_one_ground_litter",
+      "event_time_sec": 107.0,
+      "notes": "Hard positive: ~115s; exactly one ground litter (~f6420 @60fps); bin disposals must not confirm"
+    },
+    {
+      "id": "IMG_5115",
+      "file": "IMG_5115.MOV",
+      "label": "NO_EVENT",
+      "scenario": "carry_only_hard_negative",
+      "event_time_sec": null,
+      "notes": "Hard negative: carries bag, clip ends before release"
+    },
+    {
+      "id": "IMG_5303",
+      "file": "IMG_5303.MOV",
+      "label": "NO_EVENT",
+      "scenario": "pedestrians_no_waste",
+      "event_time_sec": null,
+      "notes": "Hard negative: pedestrians, no waste action"
+    },
+    {
+      "id": "IMG_5305",
+      "file": "IMG_5305.MOV",
+      "label": "NO_EVENT",
+      "scenario": "bin_disposal_hard_negative",
+      "event_time_sec": null,
+      "notes": "Hard negative: red-bag / bin-related disposal must not be ground litter"
+    },
+    {
+      "id": "IMG_5115b",
+      "file": "IMG_5115.MOV",
+      "label": "NO_EVENT",
+      "scenario": "carry_only_repeat_check",
+      "event_time_sec": null,
+      "notes": "Duplicate path entry reserved — runner de-dupes by file; kept for documentation only",
+      "skip": true
+    }
+  ]
+}

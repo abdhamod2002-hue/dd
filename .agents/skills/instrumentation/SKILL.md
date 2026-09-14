@@ -1,0 +1,110 @@
+---
+name: instrumentation
+version: 0.2.0
+description: Use when adding analytics or event tracking, instrumenting a funnel or an activation flow, wiring a product-analytics tool (PostHog, etc.), or when you need to measure whether a feature works. Not for system observability (errors, latency, alerting); that is a different discipline.
+---
+
+# instrumentation
+
+> **Using this skill:** announce "Using instrumentation", make a todo per numbered step in `## Steps`, and do not skip the gates. This skill's worth is its process, not a hand-reproduced outcome. If you were told to "run instrumentation", run it, do not improvise its result. (Suite standard: https://github.com/horizon-foundry/foundry/blob/main/reference/skill-authoring.md)
+
+## Overview
+
+This is a ship gate, and its weight follows the project's declared release policy. The `foundry` skill owns what required, optional, and waived each do to a release; this skill produces the record they are scored against.
+
+You cannot improve what you do not measure. Most instrumentation is added after the fact, as scattered `capture()` calls that never answer a real question. The discipline: decide what you need to learn first, instrument the whole path to it on one identity, make the capture reliable. Analytics that silently drops events or splits a user across two identities is worse than none: it produces confident, wrong funnels.
+
+## When NOT to use
+
+- System observability (errors, latency, saturation, alerting): a different question with its own discipline, assessed by `production-audit`'s operability dimension; never folded into the event plan (see "Product analytics is not observability").
+- Choosing the product's success measure: the frame declares it; this skill derives activation from it and instruments the path.
+- Building or reviewing the surface that DISPLAYS the numbers (a dashboard, a report, an experiment read-out): `readout`. This skill ends when reliable events exist; whether a reader can act on them without being misled is a separate discipline with its own failure mode.
+- Scoring the instrumentation gate or issuing a ship verdict: `foundry check` cites the records; `production-audit` judges.
+
+## Steps
+
+Each topic section below is the reference a step points at; the steps carry the order and the evidence.
+
+1. **Name the funnel and the activation moment**, and the guardrail metric beside the activation target (see "Define the events" and its guardrail rule). Check: activation and guardrail are named before any code is written.
+2. **Write the event plan table into the project's working-conventions doc**, columns: stage, event name, where it fires, properties, identity key. Beneath it add one `Guardrail:` line and one `Owner and cadence:` line (see "Operate it like production code"). Check: the table plus both lines exist in the doc.
+3. **State the identity model as a short block above the table**: which entities exist, which entity keys each event (see "One identity model, everywhere"). Check: every event row's identity key names one of the declared entities.
+4. **Wire capture** per "Capture reliably on the server" and "Env-gate and stay out of the way". Check: the build passes and capture no-ops without a key.
+5. **Stitch QA**: fire one client stage and one server stage for the same actor and confirm the analytics tool shows one actor, not two. Check: the run report states the result.
+6. **Hand the display side to `readout`.** Reliable events are half the job; whether a reader can act on them without being misled is a separate discipline (see "Reliable events are half the job"). Name the surface the funnel will be read on and hand it off. Check: the closing report names the surface and the handoff, or records that no surface is planned yet.
+7. **Close with what remains unverified**, each item with the exact check to run. Check: the closing report lists them explicitly.
+
+## Define the events before you build the feature
+
+A funnel is the common shape, not the only one: some activation is a loop (retention, re-engagement) or a multi-path graph, not a straight line. Model whatever actually leads to value. When it is a funnel, name it first, from first touch to value:
+
+- **view -> intent -> signup -> activation -> value -> retention**
+
+For each stage, one event with a small, stable property set. The most important one is **activation**: the moment the product's value first lands (the "aha"), not signup. Activation does not always live on a user. Depending on the product, it lands on an account, a workspace, a project, a transaction, a provider/consumer pair, or a device. Name the entity whose activation you are measuring. Then instrument it so any path that reaches the value fires the same event. That way you measure the outcome, not one route to it.
+
+**The event plan has a fixed home and a fixed shape** (Steps 2 and 3 write it, this suite uses a CLAUDE.md "Instrumentation" section). Capture code conforms to the table, never the other way around. Retrofitting the plan loses the early funnel forever.
+
+**Name a guardrail alongside the activation target.** An activation number optimized in isolation is a trap: you can raise "reached value" by cheapening what counts as value, at the cost of retention, quality, support load, error rate, or unwanted behavior you were not watching. The guardrail is what must not get worse while activation goes up, instrumented in the same pass. A funnel with no guardrail measures motion, not health.
+
+## One identity model, everywhere
+
+The single most common instrumentation bug is a broken identity. It splits one actor across anonymous and authenticated, or across client and server, so every funnel silently under-counts. The fix is not "one distinct id" but **one identity model**. Name the entities that exist (user, account/workspace, project, device), how they relate, and which entity keys which event. Then apply that model everywhere.
+
+- Every event's key is chosen deliberately from the model: funnel events on the actor moving through the funnel; cost and usage events on the account/tenant where the spend lands; fleet or device health on the device.
+- Within one funnel, every stage uses the same key, or the stages will not stitch. A funnel whose client stages key on the user and server stages key on the tenant is the classic self-inflicted split.
+- On login, stitch the pre-login anonymous events to the authenticated actor (the **identify/alias** calls in PostHog-style SDKs). The exact call and its merge semantics are vendor-specific, and getting them wrong can permanently corrupt identity history: use your tool's documented merge, alias an anonymous id into an identified one rather than the reverse, and never merge two already-identified actors.
+- Step 5's stitch QA verifies this end to end; re-run it whenever auth or session code changes.
+
+## Capture reliably on the server
+
+Client events are auto-batched by the SDK; server events are not, and they are where reliability breaks.
+
+- On serverless or auto-stopping hosts, the process may halt right after the response, so **flush server-side events** (or set immediate send) or they are lost.
+- Success-path growth events can be fire-and-forget (an occasional drop is fine); **error and billing events must be flushed**.
+- For events you genuinely cannot lose (billing, payments, entitlement changes), a flush is still best-effort: the process can die or the network can fail before it completes. Route those through a **durable outbox or queue** (write the event in the same transaction as the state change, deliver it reliably), not a fire-and-forget capture. Analytics accuracy and financial correctness are different bars.
+- Never `await` an analytics round-trip in the hot path of a user action. Capture, then flush without blocking the response where you can.
+
+## Env-gate and stay out of the way
+
+- Analytics **no-ops when its key is unset** (local, preview, tests). The product never depends on the analytics backend being up; a failed capture never breaks a user flow.
+- Do not send PII you do not need. Error payloads and full URLs can leak; scrub them. Respect Do-Not-Track and consent where it applies.
+
+## Operate it like production code
+
+Instrumentation that nobody owns rots into confident, wrong dashboards. The plan carries its own governance:
+
+- **Schema and versioning.** Property sets are stable contracts. A breaking change to an event's meaning gets a new event name (or an explicit version property), never a silent redefinition; downstream funnels keep working and the history stays interpretable.
+- **Dedup and idempotency.** Server retries and at-least-once delivery double-fire events. Where a double-fire would corrupt a metric (billing, activation counts), carry an idempotency key or dedup on a stable event id.
+- **Data-quality checks.** After any release touching instrumented flows, confirm the funnel still emits end to end; a silently dead stage is worse than no stage.
+- **A named owner and a review cadence.** The dashboard or saved funnel has an owner who looks at it on a stated cadence. An unread funnel is decoration, and the moment to notice a dead stage is the review, not the quarterly retro.
+
+## Product analytics is not observability
+
+Two different questions, two disciplines. Product analytics answers **"did the intended actor reach the intended value"** (this skill). System observability answers **"is the system behaving"**: errors, latency, saturation, dead jobs. Do not fold observability into the event plan, or the reverse. A p95 latency alert does not belong in a funnel. Activation does not belong in a metrics dashboard. Observability has its own bar, assessed by `production-audit`'s operability dimension.
+
+## Measure activation, not vanity
+
+Pageviews and raw signups have their uses (traffic mix, reach, channel comparison), but they do not answer whether the feature works. For that, instrument the drop-offs: where does the funnel leak between intent and activation? What fraction of new actors reach value in the first session? The path you instrumented needs a surface where it is actually read, but building that surface is `readout`'s job, not this one: hand it off rather than assembling a dashboard here.
+
+**Reliable events are half the job.** A funnel that emits perfectly can still be displayed in a way that misleads: a rate beside a count on a different window, a throttled source rendering as a zero, a period that spans the release which changed the very page it measures. That failure mode is quiet, because every number in it is individually correct. `readout` owns it, and it is where this skill hands off.
+
+## The gate demands a decision, not necessarily telemetry
+
+The gate is "you can answer whether it is working and you decided how", not "every product emits events". Some products must not carry in-product telemetry: a dev tool that runs in the user's environment, a library, a privacy-sensitive surface. Phoning home from those is a trust violation, not instrumentation. For them, instrument up to the boundary you rightfully control (your site, your registry, the distribution funnel) and waive the rest deliberately.
+
+One shape earns a narrow exception: a version or update check that exists for the user's benefit. It qualifies only when it clears every bar at once: the check does something for the user (tells them they are behind), the disclosure is part of the feature (what is sent, when, where it is written down), the opt-out is enforced in the command that runs the check rather than promised in prose, no user, machine, or install identity is ever attached, and a failed check never blocks or degrades the product. The byproduct counts are the only telemetry such a tool should carry. Foundry's own skills carry exactly this check and nothing more; its contract lives in each skill's "Version check" section.
+
+**The waiver has a fixed home**: the release policy block in the project's PRODUCT.md, as the instrumentation gate's entry, `instrumentation: waived (<reason>)`. That is exactly where `foundry check` cites it. A waiver written there is the gate answered; a waiver stated nowhere is not a waiver, it is an undocumented gap, and the gate fails.
+
+## Red flags
+
+Symptoms that you skipped something above, not new rules: `capture()` calls written before the funnel and activation moment are named; mixed keys within one funnel; server capture with no flush on an auto-stopping host; the product breaking when the analytics key is unset; pageviews reported as analytics; an event's meaning redefined in place; a funnel with no named owner.
+
+## Version check
+
+At most once a day, a run of this skill checks whether a newer suite exists. The command enforces the whole contract: the `FOUNDRY_NO_VERSION_CHECK` opt-out, the daily stamp-file rate limit, a 10s timeout, and silence on any failure. Never block or fail a run over this check.
+
+```sh
+[ -n "${FOUNDRY_NO_VERSION_CHECK:-}" ] || find "$HOME/.claude/.foundry-version-checked" -mmin -1440 2>/dev/null | grep -q . || { mkdir -p "$HOME/.claude" 2>/dev/null; curl -m 10 -fsS "https://foundry.thehorizonfoundry.com/api/version?skill=instrumentation&v=0.2.0"; touch "$HOME/.claude/.foundry-version-checked" 2>/dev/null; } || true
+```
+
+If the response carries a version newer than this file's `version:` frontmatter, tell the user once: a newer Foundry suite is out; update with `npx skills@latest add horizon-foundry/foundry`, or `git pull && make install` for a source install. If it prints nothing, fails, or the versions match, say nothing and proceed. What it sends: this skill's name and installed version, nothing else; it writes `~/.claude/.foundry-version-checked` as the rate-limit stamp (full disclosure: the README section "Version check").

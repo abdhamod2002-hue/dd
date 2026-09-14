@@ -72,6 +72,10 @@ class PipelineConfig:
     # Collect carry/confirmation crops under datasets/active_learning/ for
     # future trash-model training. Cheap (a few imwrites per video, capped).
     active_learning: bool = True
+    # Process-wide determinism (seeds, cudnn, no learning.json writes).
+    # Upload analysis sets this True so the same video yields the same FSM
+    # decision across re-runs. Live cameras may keep learning writes.
+    deterministic: bool = False
 
 
 @dataclass
@@ -123,6 +127,7 @@ class InferencePipeline:
             self.event_detector = AdaptiveEventDetector(
                 self.config.event_detector_config,
                 camera_id=self.config.camera_id,
+                deterministic=bool(getattr(self.config, "deterministic", False)),
             )
             if self.config.learning_tag:
                 # attribute exists only on the adaptive wrapper; setting it on

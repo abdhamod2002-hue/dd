@@ -43,6 +43,8 @@ alternates (require extra install or OpenCV <5):
 from __future__ import annotations
 
 import os
+from typing import Optional
+
 import cv2  # type: ignore
 import numpy as np  # type: ignore
 
@@ -132,13 +134,55 @@ class FaceEvidenceCapture:
         gray = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY)
         return float(cv2.Laplacian(gray, cv2.CV_64F).var())
 
-    def _score(self, face_crop: np.ndarray, det: dict):
+    @staticmethod
+    def frontality_score(keypoints=None) -> float:
+        """Approximate frontal presentation from pose / face geometry.
+
+        Prefer MoveNet shoulders (width + levelness); fall back to 0.5 when
+        keypoints are unavailable. Aligns with surveillance best-shot practice
+        (pose/frontality + sharpness + size; see KS-FQA / ISO 29794-5 pose).
+        """
+        if keypoints is None:
+            return 0.5
+        ls = getattr(keypoints, "left_shoulder", None) or (
+            keypoints.get("left_shoulder") if isinstance(keypoints, dict) else None
+        )
+        rs = getattr(keypoints, "right_shoulder", None) or (
+            keypoints.get("right_shoulder") if isinstance(keypoints, dict) else None
+        )
+        if not ls or not rs:
+            return 0.5
+        try:
+            lx, ly = float(ls[0]), float(ls[1])
+            rx, ry = float(rs[0]), float(rs[1])
+        except Exception:
+            return 0.5
+        width = abs(rx - lx)
+        # Level shoulders → facing camera; large vertical skew → profile/twist.
+        level = 1.0 - min(1.0, abs(ry - ly) / max(width, 1.0))
+        # Very narrow shoulders often mean the person is sideways.
+        span = min(1.0, width / 80.0)
+        return float(max(0.0, min(1.0, 0.6 * level + 0.4 * span)))
+
+    def frame_quality_score(
+        self,
+        face_crop: np.ndarray,
+        det: Optional[dict] = None,
+        keypoints=None,
+    ) -> float:
+        """Section 6d blend: 0.5 sharpness + 0.3 size + 0.2 frontality."""
+        det = det or {"h": float(face_crop.shape[0]), "conf": 1.0}
         blur = self._blur_score(face_crop)
-        fh = float(det["h"])
+        fh = float(det.get("h", face_crop.shape[0]))
         blur_norm = min(1.0, blur / self.blur_ref)
         size_norm = min(1.0, fh / self.face_size_ref_px)
-        conf_norm = min(1.0, float(det.get("conf", 1.0)))
-        combined = 0.4 * blur_norm + 0.3 * size_norm + 0.3 * conf_norm
+        front = self.frontality_score(keypoints)
+        return float(0.5 * blur_norm + 0.3 * size_norm + 0.2 * front)
+
+    def _score(self, face_crop: np.ndarray, det: dict, keypoints=None):
+        blur = self._blur_score(face_crop)
+        fh = float(det["h"])
+        combined = self.frame_quality_score(face_crop, det, keypoints=keypoints)
         return combined, blur, fh
 
     # ------------------------------------------------------------------ #

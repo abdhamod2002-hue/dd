@@ -330,7 +330,18 @@ class AdaptiveEventDetector:
         max_tiers: Optional[int] = None,
         enable_learning: bool = True,
         camera_id: Optional[str] = None,
+        *,
+        deterministic: bool = False,
+        freeze_learning_writes: bool = False,
     ) -> None:
+        self.deterministic = bool(deterministic)
+        # When deterministic, still *read* existing learning.json overrides so
+        # product behaviour matches production, but never mutate the file
+        # mid-session — otherwise re-running the same video changes tier
+        # thresholds between run N and N+1 (cross-video state leak).
+        self.freeze_learning_writes = bool(
+            freeze_learning_writes or self.deterministic
+        )
         self.store = store if store is not None else (
             LearningStore() if enable_learning else None
         )
@@ -449,7 +460,12 @@ class AdaptiveEventDetector:
         # End of stream: no further tier-0 confirmation can arrive, so every
         # still-unique buffered relaxed confirmation is emitted now.
         emitted.extend(self._flush_pending(None, final=True))
-        if self.learning_video and self.store is not None and not self.learning_recorded:
+        if (
+            self.learning_video
+            and self.store is not None
+            and not self.learning_recorded
+            and not self.freeze_learning_writes
+        ):
             self.record_learning()
             self.learning_recorded = True
         return emitted

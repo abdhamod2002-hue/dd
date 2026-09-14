@@ -211,7 +211,7 @@ def test_to_tracks_splits_persons_and_objects():
     from inference.tracking.bytetrack_tracker import BytetrackTracker
     from inference.association.person_object_assoc import Keypoints
 
-    tracker = BytetrackTracker()
+    tracker = BytetrackTracker(min_confirm_frames=1)
     tracked = [
         TrackedDetection(track_id=1, class_name="person", confidence=0.9,
                          bbox=(0, 0, 50, 100), centroid=(25, 50), is_person=True),
@@ -220,6 +220,7 @@ def test_to_tracks_splits_persons_and_objects():
         TrackedDetection(track_id=1, class_name="bottle", confidence=0.7,
                          bbox=(120, 120, 140, 160), centroid=(130, 140), is_person=False),
     ]
+    tracker.update(tracked, frame_index=0)
     kp = {tracker.namespace(1, True): Keypoints(left_wrist=(30, 60), torso_center=(25, 50))}
     persons, objects = tracker.to_tracks(tracked, keypoints_by_person_ns=kp)
 

@@ -183,12 +183,17 @@ def test_put_down_then_regrab_does_not_confirm(tmp_path, monkeypatch):
     """The genuine reversion path: person puts the bottle down, then PICKS IT
     BACK UP (regrab) before abandonment can trigger → no event."""
     monkeypatch.chdir(tmp_path)
+    # AIDM separation releases on the first put-down tick; keep abandonment
+    # above the brief ground dwell in this synthetic sequence so regrab can
+    # win the race (production min_abandonment_frames defaults remain 8).
+    fast = _fast_event_config()
+    fast.min_abandonment_frames = 12
     cfg = PipelineConfig(
         buffer_seconds=20.0,
         analysis_fps=100.0,
         pre_seconds=1.0,
         post_seconds=1.0,
-        event_detector_config=_fast_event_config(),
+        event_detector_config=fast,
     )
 
     pipe = InferencePipeline(cfg)

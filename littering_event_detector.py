@@ -238,6 +238,18 @@ class EventDetectorConfig:
     # Per-pair adaptive release distance: while carried, the threshold is
     # clamped between this floor and ``release_distance_ratio``.
     release_distance_floor: float = 0.15
+    # ------------------------------------------------------------------ #
+    # AIDM-Strat wrist↔bag release gate (Sensors 2022 adaptation).
+    # Paper used an absolute ~90 cm threshold; Motared normalizes by the
+    # person bounding-box diagonal so the same rule holds at different
+    # camera distances:
+    #   d_norm = min_wrist_to_bag_center / diag(person_bbox)
+    #   d_norm < attach  → hand still gripping
+    #   d_norm >= separate → physical separation (drop)
+    # ------------------------------------------------------------------ #
+    aidm_release_gate_enabled: bool = True
+    aidm_wrist_attach_ratio: float = 0.15
+    aidm_wrist_separate_ratio: float = 0.20
     # Generous spatial radius (in person-heights) within which a (person, bag)
     # pair is kept alive. Without this, a bag dropped/left at a moderate
     # distance (e.g. into a bin a meter from the person) stops producing
@@ -681,6 +693,8 @@ class _PairInfo:
     # Clutter/origin gating: wrist keypoints were actually available for this
     # person this tick (lets the FSM distinguish "wrist far" from "no pose").
     wrist_keypoints_available: bool = False
+    # AIDM-Strat: nearest-wrist→bag distance / person diagonal (None if no pose).
+    wrist_d_norm: Optional[float] = None
     # P1-5: the bag centroid is inside an operator-configured bin zone this
     # tick (static camera). Suppresses ground-litter evidence.
     in_bin_zone: bool = False
@@ -778,6 +792,14 @@ class _PairMemory:
     # (an object that NEVER moved and was never wrist-near is furniture).
     first_bag_centroid: Optional[Tuple[float, float]] = None
     ever_wrist_near: bool = False
+    # AIDM: wrist was within attach_ratio of the bag during carry (grip evidence).
+    ever_aidm_attached: bool = False
+    max_wrist_d_norm: float = 0.0
+    # AIDM dual-threshold hysteresis (attach ↔ separate). Once d_norm crosses
+    # separate after a grip, stay "separated" until d_norm returns to attach
+    # (true re-grip). Fixes IMG_5290 where peak d_norm≈0.21 is only visible for
+    # a tick or two while clothing latch pulls the live box back near the wrist.
+    aidm_separated: bool = False
     # CARRY-ORIGIN evidence (clutter suppression): accumulated handling cues.
     ever_contained: bool = False            # bag bbox ever >=25% inside person bbox
     ever_moved_with_person: bool = False    # bag ever moved in sync while carried
@@ -804,6 +826,8 @@ class _PairMemory:
     # static clutter associations barely move the "object" while the person
     # walks away and inflates norm_distance.
     max_bag_displacement_px: float = 0.0
+    # Set True when finalize credits walkaway because the clip ended mid-depart.
+    end_of_stream_walkaway: bool = False
 
     near_flags: Deque[bool] = field(default_factory=deque)
     carried_flags: Deque[bool] = field(default_factory=deque)
@@ -843,6 +867,13 @@ def _box_width(bbox: Tuple[float, float, float, float]) -> float:
     return max(1.0, float(bbox[2]) - float(bbox[0]))
 
 
+def _person_diagonal(bbox: Tuple[float, float, float, float]) -> float:
+    """√(w² + h²) — AIDM-Strat scale factor for camera-distance invariance."""
+    w = _box_width(bbox)
+    h = _box_height(bbox)
+    return math.sqrt(w * w + h * h)
+
+
 def _dist(a: Tuple[float, float], b: Tuple[float, float]) -> float:
     return math.hypot(a[0] - b[0], a[1] - b[1])
 
@@ -880,6 +911,23 @@ def _wrist_distance(person: DetectorPerson, bag: DetectorBag) -> Tuple[float, bo
     if not wrists:
         return math.inf, False
     return min(_dist(w, bc) for w in wrists), True
+
+
+def _wrist_bag_normalized_distance(
+    person: DetectorPerson, bag: DetectorBag
+) -> Tuple[Optional[float], bool]:
+    """AIDM-Strat d_norm = min Euclidean(wrist, bag_center) / person_diagonal.
+
+    Returns ``(d_norm, available)``. When pose wrists are missing, available
+    is False and the caller must degrade gracefully (do not invent a grip).
+    """
+    wrist_px, hit = _wrist_distance(person, bag)
+    if not hit or not math.isfinite(wrist_px):
+        return None, False
+    diag = _person_diagonal(person.bbox)
+    if diag <= 1e-6:
+        return None, False
+    return float(wrist_px) / float(diag), True
 
 
 def _smooth(flags: Iterable[bool], min_votes: int) -> bool:
@@ -1320,6 +1368,32 @@ class LitteringEventDetector:
                             mem.state = EventState.PERSON_DEPARTED
                             emitted.extend(self._evaluate_confirmation(mem))
 
+            # AIDM-Strat / Motared: the true bag often vanishes from YOLO after a
+            # dump while a clothing latch kept the FSM in BAG_CARRIED (IMG_5290).
+            # If we had a real grip + enough carry + walk/separation evidence,
+            # treat sustained bag loss as the dump (paper flips held→dumped).
+            if (
+                not bag_present
+                and mem.state == EventState.BAG_CARRIED
+                and (mem.ever_aidm_attached or mem.ever_wrist_near)
+                and mem.carried_frames >= max(2, int(cfg.min_carried_frames) - 1)
+                and mem.missing_frames >= max(2, int(cfg.feet_release_frames))
+                and (
+                    mem.aidm_separated
+                    or mem.max_wrist_d_norm
+                    >= float(cfg.aidm_wrist_separate_ratio)
+                    or mem.ever_person_moved_while_carried
+                )
+            ):
+                mem.state = EventState.BAG_RELEASED
+                mem.release_frame = mem.release_frame or frame_index
+                mem.release_ts = mem.release_ts or timestamp
+                mem.aidm_separated = True
+                mem.post_release_settle_streak = max(mem.post_release_settle_streak, 1)
+                mem.carried_flags.clear()
+                for _ in range(max(1, cfg.smoothing_window)):
+                    mem.carried_flags.append(False)
+
             # REPAIR-ORACLE-5290: after put-down, handheld color promotion often
             # stops (bag left the person carry band) so the pair loses its
             # semantic bag while still BAG_RELEASED / BAG_ON_GROUND. Continue
@@ -1337,11 +1411,26 @@ class LitteringEventDetector:
                         mem.ground_frame = mem.ground_frame or frame_index
                         mem.ground_ts = mem.ground_ts or timestamp
                         mem.stationary_frames = max(mem.stationary_frames, need)
+                        # Missing-bag settle after an AIDM dump: the live box is
+                        # gone (often clothing remapped earlier). Credit ground
+                        # so dumpster-adjacent street drops are not BIN_DISPOSAL.
+                        if mem.bin_zone_frames == 0 and (
+                            mem.aidm_separated
+                            or self._release_pose_on_ground(mem)
+                            or mem.ever_person_moved_while_carried
+                        ):
+                            mem.ground_evidence_frames = max(
+                                mem.ground_evidence_frames, 1
+                            )
                 if mem.state == EventState.BAG_ON_GROUND:
                     mem.abandonment_frames += 1
                     mem.stationary_frames = max(
                         mem.stationary_frames, mem.abandonment_frames
                     )
+                    if mem.bin_zone_frames == 0 and mem.aidm_separated:
+                        mem.ground_evidence_frames = max(
+                            mem.ground_evidence_frames, 1
+                        )
                     if mem.abandonment_frames >= cfg.min_abandonment_frames:
                         mem.departure_frame = mem.departure_frame or frame_index
                         mem.departure_ts = mem.departure_ts or timestamp
@@ -1352,7 +1441,7 @@ class LitteringEventDetector:
                 forced_reason = None
                 if not person_present and mem.state in (EventState.BAG_CARRIED, EventState.BAG_RELEASED, EventState.BAG_ON_GROUND):
                     forced_reason = RejectionReason.PERSON_NOT_DETECTED.value
-                elif not bag_present and mem.state in (EventState.BAG_CARRIED, EventState.BAG_RELEASED):
+                elif not bag_present and mem.state == EventState.BAG_CARRIED:
                     forced_reason = RejectionReason.BAG_NOT_DETECTED.value
                 emitted.extend(self._finalize_pair(mem, forced_reason=forced_reason))
                 del self._pairs[key]
@@ -1560,6 +1649,11 @@ class LitteringEventDetector:
         carry_zone = _in_carrying_zone(person, bag, cfg)
         wrist_dist, wrist_hit = _wrist_distance(person, bag)
         wrist_near = wrist_hit and (wrist_dist / ph) <= cfg.near_distance_ratio
+        wrist_d_norm, wrist_d_available = _wrist_bag_normalized_distance(person, bag)
+        # Prefer AIDM attach ratio when pose is available (finer than near_distance).
+        if wrist_d_available and wrist_d_norm is not None:
+            if wrist_d_norm <= cfg.aidm_wrist_attach_ratio:
+                wrist_near = True
         kp = person.keypoints
         wrist_kp_available = bool(
             kp is not None
@@ -1689,6 +1783,7 @@ class LitteringEventDetector:
             moves_with_person=bool(moves_with_person),
             wrist_near=bool(wrist_near),
             wrist_keypoints_available=bool(wrist_kp_available),
+            wrist_d_norm=(float(wrist_d_norm) if wrist_d_norm is not None else None),
         )
 
     def _select_primary_associations(self, infos: List[_PairInfo]) -> List[_PairInfo]:
@@ -1860,6 +1955,22 @@ class LitteringEventDetector:
             mem.first_bag_centroid = info.bag_centroid
         if info.wrist_near and info.carried:
             mem.ever_wrist_near = True
+        if (
+            info.wrist_d_norm is not None
+            and info.wrist_d_norm <= cfg.aidm_wrist_attach_ratio
+        ):
+            mem.ever_aidm_attached = True
+            # Do NOT clear aidm_separated here. Clothing / hip color latches
+            # routinely pull d_norm back into the attach band after a real
+            # dump (IMG_5290). Separation clears only on smooth_regrab.
+        if info.wrist_d_norm is not None:
+            mem.max_wrist_d_norm = max(mem.max_wrist_d_norm, float(info.wrist_d_norm))
+            if (
+                info.wrist_keypoints_available
+                and mem.ever_aidm_attached
+                and float(info.wrist_d_norm) >= float(cfg.aidm_wrist_separate_ratio)
+            ):
+                mem.aidm_separated = True
         # CARRY-ORIGIN evidence (clutter suppression): accumulate handling cues
         # so the CARRIED transition can verify the object truly originates
         # from a person rather than being static ground clutter.
@@ -1951,6 +2062,20 @@ class LitteringEventDetector:
             # After ground, measure lift from the deeper of release vs current
             # bag depth so a pick-up from the ground plane counts even when
             # release_centroid was mid-drop.
+            #
+            # AIDM-Strat (Section 5b recall fix for M.MOV): when wrists are
+            # available, reclaim also requires the hand to be gripping again
+            # (d_norm <= attach). Otherwise a walk-past / clothing latch after
+            # a real drop falsely clears release_frame → PICKED_BACK_UP.
+            aidm_gripping = True
+            if (
+                cfg.aidm_release_gate_enabled
+                and info.wrist_keypoints_available
+                and info.wrist_d_norm is not None
+            ):
+                aidm_gripping = (
+                    float(info.wrist_d_norm) <= float(cfg.aidm_wrist_attach_ratio)
+                )
             lifted = False
             strong_lift = False
             if (
@@ -1969,18 +2094,22 @@ class LitteringEventDetector:
                 and info.person_moving
                 and info.moves_with_person
                 and (smooth_carried or info.wrist_near)
+                and aidm_gripping
             )
             if mem.ground_frame is None:
-                regrab_candidate = bool(
-                    strong_lift and (smooth_carried or info.wrist_near or info.near)
-                )
+                # Do not reclaim before BAG_ON_GROUND. Mid-flight "lift" relative
+                # to the release centroid (tracker bounce / arm motion) was
+                # wiping real put-downs on M.MOV into PICKED_BACK_UP before
+                # ground evidence could stick. Genuine pick-ups after a settled
+                # ground rest still reclaim via the branch below.
+                regrab_candidate = False
                 mem.regrab_lift_streak = 0
             else:
                 # Count pure strong_lift ticks toward the streak (bag may leave
                 # the ground before it re-enters the wrist band). Accept reclaim
                 # only after sustained lift — walking_reclaim alone used to fire
                 # on person-jitter + bag reassociation (Docker IMG_5290).
-                if strong_lift:
+                if strong_lift and aidm_gripping:
                     mem.regrab_lift_streak += 1
                 else:
                     mem.regrab_lift_streak = 0
@@ -1991,7 +2120,7 @@ class LitteringEventDetector:
                     or info.near
                     or walking_reclaim
                 )
-                regrab_candidate = bool(sustained and associated)
+                regrab_candidate = bool(sustained and associated and aidm_gripping)
         mem.regrab_flags.append(regrab_candidate)
         smooth_regrab = _smooth(mem.regrab_flags, min_votes)
 
@@ -2021,9 +2150,14 @@ class LitteringEventDetector:
             resting = bool(smooth_stationary or info.stationary)
             if resting and info.in_bin_zone:
                 mem.bin_zone_frames += 1
+            live_ground = bool(info.near_ground_plane or info.bag_below_feet)
+            # Recall (M.MOV): after a true put-down the live bag track often
+            # remaps to a mid-body false detection; keep crediting when the
+            # FROZEN release pose was already on the actor ground plane.
+            frozen_ground = self._release_pose_on_ground(mem)
             if (
                 resting
-                and (info.near_ground_plane or info.bag_below_feet)
+                and (live_ground or frozen_ground)
                 and not info.in_bin_zone
             ):
                 mem.ground_evidence_frames += 1
@@ -2071,7 +2205,12 @@ class LitteringEventDetector:
                 mem.state = EventState.BAG_NEAR_PERSON
 
         if mem.state == EventState.BAG_NEAR_PERSON:
-            if smooth_carried and mem.carried_frames >= cfg.min_carried_frames:
+            # AIDM-attached grips may establish CARRIED one tick earlier than
+            # the global min (short bottle / bag handoffs on IMG_5295/5118).
+            carry_need = int(cfg.min_carried_frames)
+            if mem.ever_aidm_attached:
+                carry_need = max(2, carry_need - 1)
+            if smooth_carried and mem.carried_frames >= carry_need:
                 # CARRY-ORIGIN CONSTRAINT (clutter suppression): when wrist pose
                 # keypoints are available, the object must have been spatially
                 # linked to a wrist/hand before it may become CARRIED. Without
@@ -2100,7 +2239,14 @@ class LitteringEventDetector:
                     mem.carry_object_uid = mem.bag_uid
 
         if mem.state == EventState.BAG_CARRIED:
-            if self._release_detected(mem, info, smooth_carried, distance_increasing):
+            # AIDM-Strat (paper): after a real grip, wrist–bag separation
+            # itself is the dump signal — not merely a veto on geometry.
+            geo_release = self._release_detected(
+                mem, info, smooth_carried, distance_increasing
+            )
+            aidm_ok = self._aidm_allows_release(mem, info)
+            aidm_sep = self._aidm_separation_release(mem, info)
+            if (geo_release and aidm_ok) or aidm_sep:
                 mem.state = EventState.BAG_RELEASED
                 mem.release_frame = frame_index
                 mem.release_ts = timestamp
@@ -2139,6 +2285,9 @@ class LitteringEventDetector:
                 mem.reclaimed = True
                 mem.post_release_settle_streak = 0
                 mem.regrab_lift_streak = 0
+                # Reclaim is a new grip arc — do not keep a prior throw's
+                # separation latch (would instant-release the regrab).
+                mem.aidm_separated = False
             elif mem.release_frame == frame_index:
                 # Same-tick fall-through after BAG_CARRIED→RELEASED: seed settle
                 # but do not complete BAG_ON_GROUND (protects regrab window).
@@ -2192,6 +2341,7 @@ class LitteringEventDetector:
                         info.near_ground_plane
                         or info.bag_below_feet
                         or loose_ground
+                        or self._release_pose_on_ground(mem)
                     ):
                         mem.ground_evidence_frames += 1
 
@@ -2242,20 +2392,12 @@ class LitteringEventDetector:
                     return self._evaluate_confirmation(mem)
 
         if mem.state == EventState.PERSON_DEPARTED:
-            if smooth_regrab:
-                mem.state = EventState.BAG_CARRIED
-                mem.release_frame = None
-                mem.ground_frame = None
-                mem.departure_frame = None
-                mem.stationary_frames = 0
-                mem.departed_frames = 0
-                mem.departure_baseline = 0.0
-                mem.release_person_centroid = None
-                mem.release_person_height = 0.0
-                mem.max_departure_ratio = 0.0
-                mem.reclaimed = True
-            else:
-                return self._evaluate_confirmation(mem)
+            # Do NOT reclaim after abandonment/departure locked. Tracker bounce
+            # + AIDM flicker after PERSON_DEPARTED was wiping release_frame and
+            # finalizing M.MOV as PICKED_BACK_UP even when confirmation already
+            # had a grounded put-down (only BIN_DISPOSAL blocked on live remap).
+            # Genuine pick-ups still reclaim from BAG_ON_GROUND above.
+            return self._evaluate_confirmation(mem)
 
         return []
 
@@ -2328,8 +2470,12 @@ class LitteringEventDetector:
         )
         if crit_distance and mem.carried_frames >= min_carry_distance:
             return True
-        # Remaining alt-release criteria still require the full carry count.
-        if mem.carried_frames < cfg.min_carried_frames:
+        # Remaining alt-release criteria still require the full carry count
+        # (or AIDM-attached short-carry: one less tick).
+        carry_need = int(cfg.min_carried_frames)
+        if mem.ever_aidm_attached:
+            carry_need = max(2, carry_need - 1)
+        if mem.carried_frames < carry_need:
             return False
 
         handled = self._bag_was_handled(mem, info)
@@ -2471,6 +2617,120 @@ class LitteringEventDetector:
             or crit_held_static
         )
 
+    def _release_pose_on_ground(self, mem: _PairMemory) -> bool:
+        """True when the frozen release bag centroid sits on the actor ground plane.
+
+        Live bag tracks often remap after put-down (class/ID churn). Ground
+        confirmation must still honour the release pose so a mid-body false
+        latch cannot force BIN_DISPOSAL on a real street drop (M.MOV).
+        """
+        if (
+            mem.release_bag_centroid is None
+            or mem.release_person_centroid is None
+            or mem.release_person_height <= 1.0
+        ):
+            return False
+        cfg = self.config
+        rfeet_y = float(mem.release_person_centroid[1]) + 0.5 * float(
+            mem.release_person_height
+        )
+        # Match live near_ground_plane, plus the settle-time loose band (0.25·ph).
+        margin = max(float(cfg.ground_plane_margin_ratio), 0.25)
+        return float(mem.release_bag_centroid[1]) >= (
+            rfeet_y - margin * float(mem.release_person_height)
+        )
+
+    def _aidm_allows_release(self, mem: _PairMemory, info: _PairInfo) -> bool:
+        """AIDM-Strat verification before BAG_CARRIED → BAG_RELEASED.
+
+        When MoveNet wrists are available, require either:
+          * wrist–bag d_norm >= separate_ratio (true hand separation), or
+          * grounded put-down after a real grip (standing over a drop — wrists
+            may remain geometrically near; REPAIR-P0-01b).
+
+        Without wrists, degrade gracefully (legacy release criteria stand).
+        Blocks the passerby pattern: walk next to a grounded bag without a
+        prior AIDM attach / wrist grip, then invent a release.
+        """
+        cfg = self.config
+        if not cfg.aidm_release_gate_enabled:
+            return True
+        d_norm = info.wrist_d_norm
+        if d_norm is None or not info.wrist_keypoints_available:
+            return True
+        if d_norm >= float(cfg.aidm_wrist_separate_ratio):
+            return True
+        # Standing / feet put-down after a real grip: bag on/near ground plane,
+        # previously attached, and no longer motion-synced carry.
+        # Relaxed stationary: tracker jitter often keeps "moving" after a real
+        # drop (IMG_5290) — left-behind / unsynced is enough with ground contact.
+        gripped = mem.ever_aidm_attached or mem.ever_wrist_near
+        on_ground = bool(
+            info.near_ground_plane
+            or info.bag_below_feet
+            or self._release_pose_on_ground(mem)
+        )
+        left_behind = (not info.moves_with_person) or info.stationary
+        grounded_putdown = (
+            gripped
+            and on_ground
+            and left_behind
+            and (mem.ever_off_ground_while_carried or mem.ever_person_moved_while_carried)
+        )
+        # Walk-away unlatch after a real grip when the bag stops tracking with
+        # the body (IMG_5290 / multiperson): near_ground often never fires
+        # because the live box stays mid-torso, but motion desync is real.
+        walkaway_unlatch = (
+            gripped
+            and (mem.ever_off_ground_while_carried or mem.ever_person_moved_while_carried)
+            and (not info.moves_with_person)
+            and info.person_moving
+            and (
+                float(info.norm_distance) >= float(cfg.release_distance_floor)
+                or float(info.containment) < 0.25
+                or (
+                    info.wrist_d_norm is not None
+                    and float(info.wrist_d_norm) >= float(cfg.aidm_wrist_separate_ratio)
+                )
+            )
+        )
+        return bool(grounded_putdown or walkaway_unlatch)
+
+    def _aidm_separation_release(self, mem: _PairMemory, info: _PairInfo) -> bool:
+        """True when AIDM wrist–bag separation alone confirms a dump.
+
+        Kim & Cho (Sensors 2022): illegal dumping is decided when wrist–bag
+        distance exceeds the separation threshold after the bag was held.
+        Motared previously used that only as a veto on geometric release, so
+        true separations with smooth_carried still True never left BAG_CARRIED
+        (IMG_5290 peak d_norm≈0.21 with carry latch).
+
+        Dual-threshold hysteresis: once ``aidm_separated`` latches after a
+        grip, it stays true until d_norm returns to the attach band (or a
+        smooth regrab clears it). That matches the paper's attach/separate
+        bands and survives one-frame peaks that clothing latch immediately
+        collapses.
+        """
+        cfg = self.config
+        if not cfg.aidm_release_gate_enabled:
+            return False
+        gripped = mem.ever_aidm_attached or mem.ever_wrist_near
+        if not gripped:
+            return False
+        carry_need = int(cfg.min_carried_frames)
+        if mem.ever_aidm_attached:
+            carry_need = max(2, carry_need - 1)
+        if mem.carried_frames < carry_need:
+            return False
+        sep = float(cfg.aidm_wrist_separate_ratio)
+        d_now = info.wrist_d_norm
+        separated_now = (
+            info.wrist_keypoints_available
+            and d_now is not None
+            and float(d_now) >= sep
+        )
+        return bool(separated_now or mem.aidm_separated)
+
     def _compute_evidence(self, mem: _PairMemory) -> EventEvidence:
         cfg = self.config
         carry_score = min(1.0, mem.carried_frames / max(1, cfg.min_carried_frames))
@@ -2547,20 +2807,28 @@ class LitteringEventDetector:
             return RejectionReason.LOW_BAG_CONFIDENCE.value
         if mem.person_seen_frames < cfg.min_carried_frames:
             return RejectionReason.PERSON_NOT_DETECTED.value
-        # Fast-drop: a clear physical separation may confirm with slightly
-        # fewer carried ticks than the full min_carried_frames bar.
+        # Fast-drop / AIDM short-carry: clear grip + release may confirm with
+        # slightly fewer carried ticks than the full min_carried_frames bar.
         min_carry_for_confirm = max(2, int(cfg.min_carried_frames) - 2)
+        if mem.ever_aidm_attached:
+            min_carry_for_confirm = max(2, int(cfg.min_carried_frames) - 1)
         sep_floor_early = max(cfg.release_distance_floor, 0.08)
         fast_drop_ok = (
             mem.carried_frames >= min_carry_for_confirm
             and mem.release_frame is not None
             and (
                 mem.max_post_release_norm_distance >= sep_floor_early
-                or mem.separated_frames >= max(2, int(cfg.feet_release_frames))
+                or mem.separated_frames >= max(1, int(cfg.feet_release_frames) - 1)
             )
         )
         if mem.carried_frames < cfg.min_carried_frames and not fast_drop_ok:
-            return RejectionReason.NOT_ENOUGH_CARRIED_FRAMES.value
+            # Still allow AIDM short carries that reached a real release.
+            if not (
+                mem.ever_aidm_attached
+                and mem.carried_frames >= 2
+                and mem.release_frame is not None
+            ):
+                return RejectionReason.NOT_ENOUGH_CARRIED_FRAMES.value
         if mem.release_frame is None:
             return RejectionReason.NO_RELEASE_TRANSITION.value
         if mem.stationary_frames < cfg.min_stationary_frames:
@@ -2583,24 +2851,76 @@ class LitteringEventDetector:
         # BIN VS GROUND gate: a candidate whose resting location was never
         # observed on the actor's ground plane is a bin/container deposit, not
         # ground littering -> report BIN_DISPOSAL or operator bin-zone deposit.
+        # P1-5: operator bin-zone rest wins over any fall-through ground ticks
+        # scored while the bag crossed the feet band on the way into the zone.
+        if mem.bin_zone_frames > 0 and mem.bin_zone_frames >= max(
+            1, int(mem.ground_evidence_frames)
+        ):
+            return RejectionReason.BIN_ZONE_DEPOSIT.value
         if cfg.require_ground_confirmation and mem.ground_evidence_frames <= 0:
-            if mem.bin_zone_frames > 0:
+            # IMG_5290: AIDM separation can fire while the live box is still a
+            # mid-body clothing latch, so no live ground ticks accrue. Allow
+            # only when the FROZEN release pose sits in the lower body band
+            # (toward the feet / street) and no operator bin-zone fired.
+            # Elevated dumpster mouths (IMG_5305) sit mid-torso and stay blocked.
+            release_toward_feet = False
+            if (
+                mem.release_bag_centroid is not None
+                and mem.release_person_centroid is not None
+                and mem.release_person_height > 1.0
+            ):
+                release_toward_feet = float(mem.release_bag_centroid[1]) >= (
+                    float(mem.release_person_centroid[1])
+                    + 0.10 * float(mem.release_person_height)
+                )
+            aidm_dump_without_live_ground = (
+                mem.aidm_separated
+                and (mem.ever_aidm_attached or mem.ever_wrist_near)
+                and mem.bin_zone_frames == 0
+                and release_toward_feet
+                and (
+                    mem.ever_person_moved_while_carried
+                    or mem.max_post_release_norm_distance
+                    >= max(cfg.release_distance_floor, 0.08)
+                    or mem.separated_frames >= 1
+                )
+            )
+            if aidm_dump_without_live_ground:
+                mem.ground_evidence_frames = max(mem.ground_evidence_frames, 1)
+            elif mem.bin_zone_frames > 0:
                 return RejectionReason.BIN_ZONE_DEPOSIT.value
-            return RejectionReason.BIN_DISPOSAL.value
+            else:
+                return RejectionReason.BIN_DISPOSAL.value
         # Physical separation gate: an object that was contained in the person
         # box (clothing / hip latch) but never left the body after "release"
         # is not ground littering. Also reject static color/clutter blobs that
         # never moved while the person walked away (inflated norm_distance).
         sep_floor = max(cfg.release_distance_floor, 0.08)
+        # Strong geometric separation after a grounded release only needs one
+        # clear separated tick (IMG_5306 had sep≈0.45 with sep_fr=1 and was
+        # rejected as NO_PHYSICAL_SEPARATION despite GROUND_CONFIRMED).
+        sep_ticks_needed = max(2, int(cfg.feet_release_frames))
+        if (
+            mem.ground_evidence_frames > 0
+            and mem.max_post_release_norm_distance >= max(sep_floor, 0.25)
+        ):
+            sep_ticks_needed = 1
         physically_separated = (
             mem.max_post_release_norm_distance >= sep_floor
-            and mem.separated_frames >= max(2, int(cfg.feet_release_frames))
+            and mem.separated_frames >= sep_ticks_needed
         )
         bag_actually_moved = mem.max_bag_displacement_px >= (
             max(0.12, cfg.bag_move_norm * 2.0) * max(mem.release_person_height, 80.0)
         )
         if mem.ever_contained and (not physically_separated or not bag_actually_moved):
-            return RejectionReason.NO_PHYSICAL_SEPARATION.value
+            # AIDM wrist separation is independent proof the hand left the
+            # object; clothing/hip remaps must not erase that (IMG_5290).
+            if not (
+                mem.aidm_separated
+                and mem.bin_zone_frames == 0
+                and (mem.ever_aidm_attached or mem.ever_wrist_near)
+            ):
+                return RejectionReason.NO_PHYSICAL_SEPARATION.value
         if evidence.confidence < cfg.min_event_confidence:
             return RejectionReason.EVENT_CONFIDENCE_TOO_LOW.value
         return None
@@ -2626,6 +2946,53 @@ class LitteringEventDetector:
             return [event]
         return []
 
+    def _apply_end_of_stream_walkaway_credit(self, mem: _PairMemory) -> bool:
+        """Credit departure when the video ends while the actor is walking away
+        after a grounded release.
+
+        Short clips (e.g. ~4–8 s) often reach carry→release→ground then cut
+        before ``min_departed_frames`` / ``min_abandonment_frames`` accumulate,
+        producing a false ``PERSON_DID_NOT_DEPART`` even though the person kept
+        walking and left the bag. End-of-stream is the only chance to recover.
+        """
+        if mem.release_frame is None:
+            return False
+        if mem.ground_frame is None and mem.ground_evidence_frames <= 0:
+            return False
+        if mem.reclaimed:
+            return False
+        cfg = self.config
+        sep_floor = max(cfg.release_distance_floor, 0.12)
+        walked_away = (
+            mem.max_departure_ratio >= 0.45
+            or mem.departed_frames >= 1
+            or mem.max_post_release_norm_distance >= sep_floor
+            or (
+                mem.release_person_centroid is not None
+                and mem.max_departure_ratio > 0.0
+            )
+        )
+        if not walked_away:
+            return False
+        if mem.departure_frame is None:
+            mem.departure_frame = mem.last_frame
+            mem.departure_ts = mem.last_timestamp
+        if mem.state not in (
+            EventState.PERSON_DEPARTED,
+            EventState.VIOLATION_CONFIRMED,
+        ):
+            mem.state = EventState.PERSON_DEPARTED
+        mem.max_departure_ratio = max(mem.max_departure_ratio, 1.0)
+        mem.departed_frames = max(mem.departed_frames, cfg.min_departed_frames)
+        mem.abandonment_frames = max(
+            mem.abandonment_frames, cfg.min_abandonment_frames
+        )
+        mem.stationary_frames = max(
+            mem.stationary_frames, cfg.min_stationary_frames
+        )
+        mem.end_of_stream_walkaway = True
+        return True
+
     def _finalize_pair(self, mem: _PairMemory, forced_reason: Optional[str] = None) -> List[LitteringEvent]:
         if mem.emitted:
             return []
@@ -2634,6 +3001,13 @@ class LitteringEventDetector:
         evidence = self._compute_evidence(mem)
         if forced_reason is None:
             reason = self._rejection_reason(mem, evidence)
+            # End-of-stream walkaway: person threw, bag grounded, and they kept
+            # moving away — do not reject as PERSON_DID_NOT_DEPART solely because
+            # the clip cut before the full departure window.
+            if reason == RejectionReason.PERSON_DID_NOT_DEPART.value:
+                if self._apply_end_of_stream_walkaway_credit(mem):
+                    evidence = self._compute_evidence(mem)
+                    reason = self._rejection_reason(mem, evidence)
             if reason is None:
                 # End-of-stream with a fully satisfied evidence gate: confirm.
                 # Without this, standing put-downs that never trip the
@@ -2706,8 +3080,13 @@ class LitteringEventDetector:
                 "ambiguous_frames": mem.ambiguous_frames,
                 # BIN VS GROUND: always reported, even when the gate is off.
                 "location_status": (
-                    "GROUND_CONFIRMED" if mem.ground_evidence_frames > 0
-                    else "BIN_ZONE" if mem.bin_zone_frames > 0
+                    "BIN_ZONE"
+                    if mem.bin_zone_frames > 0
+                    and mem.bin_zone_frames >= max(1, int(mem.ground_evidence_frames))
+                    else "GROUND_CONFIRMED"
+                    if mem.ground_evidence_frames > 0
+                    else "BIN_ZONE"
+                    if mem.bin_zone_frames > 0
                     else "LOCATION_AMBIGUOUS"
                 ),
                 "ground_evidence_frames": mem.ground_evidence_frames,
@@ -2718,6 +3097,13 @@ class LitteringEventDetector:
                 "separated_frames": mem.separated_frames,
                 "ever_contained": mem.ever_contained,
                 "max_bag_displacement_px": round(mem.max_bag_displacement_px, 2),
+                "end_of_stream_walkaway": bool(mem.end_of_stream_walkaway),
+                "ever_aidm_attached": bool(mem.ever_aidm_attached),
+                "max_wrist_d_norm": round(mem.max_wrist_d_norm, 4),
+                "aidm_separated": bool(mem.aidm_separated),
+                "aidm_wrist_separate_ratio": float(
+                    self.config.aidm_wrist_separate_ratio
+                ),
                 # P1-8: disclose the EFFECTIVE runtime thresholds that produced
                 # this decision (base YAML + any adaptive learned overrides).
                 "active_thresholds": {

@@ -11,6 +11,7 @@ import numpy as np
 from littering_event_detector import (
     LitteringEventDetector,
     EventDetectorConfig,
+    EventState,
     RejectionReason,
     DetectorPerson,
     DetectorBag,
@@ -279,3 +280,61 @@ def test_adaptive_flush_suppresses_unseparated_relaxed_confirm():
     out = det._flush_pending(None, final=True)
     assert out == []
     assert det.confirmed_events == []
+
+
+def test_end_of_stream_walkaway_confirms_instead_of_person_did_not_depart():
+    """Short clip: release+ground then person keeps walking — finalize confirms."""
+    cfg = EventDetectorConfig(
+        require_ground_confirmation=True,
+        min_carried_frames=4,
+        min_stationary_frames=8,
+        min_abandonment_frames=8,
+        min_departed_frames=2,
+        min_event_confidence=0.5,
+    )
+    detector = LitteringEventDetector(config=cfg)
+
+    mem = _PairMemory(person_id=1, bag_id=10)
+    mem.bag_seen_frames = 20
+    mem.person_seen_frames = 20
+    mem.carried_frames = 8
+    mem.release_frame = 209
+    mem.ground_frame = 249
+    mem.ground_evidence_frames = 3
+    mem.stationary_frames = 2  # clip cut before full stationary window
+    mem.departed_frames = 1
+    mem.max_departure_ratio = 0.6
+    mem.departure_frame = None
+    mem.ever_contained = True
+    mem.max_post_release_norm_distance = 0.35
+    mem.separated_frames = 3
+    mem.max_bag_displacement_px = 90.0
+    mem.release_person_height = 400.0
+    mem.release_person_centroid = (300.0, 900.0)
+    mem.last_frame = 272
+    mem.last_timestamp = 4.5
+    mem.confidence_sum = 18.0
+    mem.confidence_count = 20
+    mem.state = EventState.BAG_ON_GROUND
+
+    # Precondition: without end-of-stream credit this would be PERSON_DID_NOT_DEPART
+    evidence = EventEvidence(
+        carry_score=0.9,
+        release_score=1.0,
+        stationary_score=0.3,
+        departure_score=0.6,
+        association_score=0.9,
+        detection_score=0.9,
+        confidence=0.85,
+    )
+    assert (
+        detector._rejection_reason(mem, evidence)
+        == RejectionReason.PERSON_DID_NOT_DEPART.value
+    )
+
+    out = detector._finalize_pair(mem)
+    assert len(out) == 1
+    assert out[0].confirmed is True
+    assert out[0].reason == "VIOLATION_CONFIRMED"
+    assert mem.end_of_stream_walkaway is True
+    assert mem.departure_frame == 272

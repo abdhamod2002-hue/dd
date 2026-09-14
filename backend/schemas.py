@@ -139,6 +139,21 @@ class EventReviewOut(BaseModel):
     report: Optional[Dict[str, Any]] = None
 
 
+class EventVerdictIn(BaseModel):
+    """Operator confirm/reject for offline self-learning (Section 7)."""
+
+    verdict: str  # confirm | reject
+    notes: str = ""
+
+
+class EventVerdictOut(BaseModel):
+    event_id: int
+    verdict: str
+    status: str
+    incoming_dir: str
+    verdict_path: str
+
+
 # --------------------------------------------------------------------------- #
 # Video Analysis Job Schemas
 # --------------------------------------------------------------------------- #

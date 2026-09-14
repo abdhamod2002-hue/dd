@@ -1,0 +1,374 @@
+{
+  "version": 1,
+  "videos_analyzed": 95,
+  "rejection_reasons": {
+    "NO_RELEASE_TRANSITION": 87,
+    "PERSON_NOT_DETECTED": 6,
+    "NOT_ENOUGH_CARRIED_FRAMES": 37,
+    "PICKED_BACK_UP": 9,
+    "EVENT_CONFIDENCE_TOO_LOW": 2,
+    "PERSON_DID_NOT_DEPART": 4,
+    "NO_CONFIDENT_EVENT": 3,
+    "BAG_NOT_DETECTED": 2,
+    "BIN_DISPOSAL": 3
+  },
+  "step_index": {
+    "NO_RELEASE_TRANSITION": 3,
+    "PERSON_NOT_DETECTED": 2,
+    "NOT_ENOUGH_CARRIED_FRAMES": 3,
+    "PERSON_DID_NOT_DEPART": 3,
+    "BAG_NOT_DETECTED": 2
+  },
+  "adjusted_thresholds": {
+    "release_distance_ratio": 0.12,
+    "release_distance_floor": 0.1,
+    "release_window_frames": 8,
+    "feet_release_frames": 2,
+    "max_pair_age_frames": 90,
+    "min_carried_frames": 3,
+    "smoothing_window": 3,
+    "departure_motion_ratio": 0.45,
+    "departure_distance_ratio": 0.85,
+    "min_abandonment_frames": 5,
+    "max_fallback_tracker_gap_frames": 45
+  },
+  "history": {
+    "probe_upload.mp4": {
+      "summary": {
+        "total_candidates": 1,
+        "confirmed_violations": 1,
+        "rejected_candidates": 0,
+        "rejection_reason_counts": {}
+      },
+      "recorded_at": 1789231919.0485299,
+      "tiers_confirmed": {
+        "tier0": 1,
+        "tier1": 1,
+        "tier2": 1
+      }
+    },
+    "IMG_5305.MOV": {
+      "summary": {
+        "total_candidates": 2,
+        "confirmed_violations": 0,
+        "rejected_candidates": 2,
+        "rejection_reason_counts": {
+          "NO_RELEASE_TRANSITION": 1,
+          "PICKED_BACK_UP": 1
+        }
+      },
+      "recorded_at": 1788946863.085914,
+      "tiers_confirmed": {
+        "tier0": 0,
+        "tier1": 0,
+        "tier2": 0
+      }
+    },
+    "IMG_5302.MOV": {
+      "summary": {
+        "total_candidates": 1,
+        "confirmed_violations": 0,
+        "rejected_candidates": 1,
+        "rejection_reason_counts": {
+          "NO_RELEASE_TRANSITION": 1
+        }
+      },
+      "recorded_at": 1788868001.4603508,
+      "tiers_confirmed": {
+        "tier0": 0,
+        "tier1": 0,
+        "tier2": 0
+      }
+    },
+    "IMG_5287.MOV": {
+      "summary": {
+        "total_candidates": 3,
+        "confirmed_violations": 0,
+        "rejected_candidates": 3,
+        "rejection_reason_counts": {
+          "PERSON_NOT_DETECTED": 3
+        }
+      },
+      "recorded_at": 1788931937.0518398,
+      "tiers_confirmed": {
+        "tier0": 0,
+        "tier1": 0,
+        "tier2": 0
+      }
+    },
+    "IMG_5288.MOV": {
+      "summary": {
+        "total_candidates": 1,
+        "confirmed_violations": 0,
+        "rejected_candidates": 1,
+        "rejection_reason_counts": {
+          "NO_RELEASE_TRANSITION": 1
+        }
+      },
+      "recorded_at": 1789287982.9774177,
+      "tiers_confirmed": {
+        "tier0": 0,
+        "tier1": 0,
+        "tier2": 0
+      }
+    },
+    "IMG_5290.MOV": {
+      "summary": {
+        "total_candidates": 4,
+        "confirmed_violations": 1,
+        "rejected_candidates": 3,
+        "rejection_reason_counts": {
+          "NO_RELEASE_TRANSITION": 1,
+          "NOT_ENOUGH_CARRIED_FRAMES": 2
+        }
+      },
+      "recorded_at": 1789202800.442317,
+      "tiers_confirmed": {
+        "tier0": 1,
+        "tier1": 0,
+        "tier2": 0
+      }
+    },
+    "IMG_5291.MOV": {
+      "summary": {
+        "total_candidates": 3,
+        "confirmed_violations": 0,
+        "rejected_candidates": 3,
+        "rejection_reason_counts": {
+          "BIN_DISPOSAL": 1,
+          "NO_RELEASE_TRANSITION": 2
+        }
+      },
+      "recorded_at": 1789277575.0759456,
+      "tiers_confirmed": {
+        "tier0": 0,
+        "tier1": 0,
+        "tier2": 0
+      }
+    },
+    "IMG_5292.MOV": {
+      "summary": {
+        "total_candidates": 0,
+        "confirmed_violations": 0,
+        "rejected_candidates": 0,
+        "rejection_reason_counts": {}
+      },
+      "recorded_at": 1788950548.7740014,
+      "tiers_confirmed": {
+        "tier0": 0,
+        "tier1": 0,
+        "tier2": 0
+      }
+    },
+    "IMG_5299.MOV": {
+      "summary": {
+        "total_candidates": 1,
+        "confirmed_violations": 0,
+        "rejected_candidates": 1,
+        "rejection_reason_counts": {
+          "NO_RELEASE_TRANSITION": 1
+        }
+      },
+      "recorded_at": 1789036746.3752074,
+      "tiers_confirmed": {
+        "tier0": 0,
+        "tier1": 0,
+        "tier2": 0
+      }
+    },
+    "IMG_5298.MOV": {
+      "summary": {
+        "total_candidates": 0,
+        "confirmed_violations": 0,
+        "rejected_candidates": 0,
+        "rejection_reason_counts": {}
+      },
+      "recorded_at": 1788973099.727696,
+      "tiers_confirmed": {
+        "tier0": 0,
+        "tier1": 0,
+        "tier2": 0
+      }
+    },
+    "IMG_5117.MOV": {
+      "summary": {
+        "total_candidates": 2,
+        "confirmed_violations": 0,
+        "rejected_candidates": 2,
+        "rejection_reason_counts": {
+          "PERSON_DID_NOT_DEPART": 1,
+          "NO_RELEASE_TRANSITION": 1
+        }
+      },
+      "recorded_at": 1789282559.124439,
+      "tiers_confirmed": {
+        "tier0": 0,
+        "tier1": 0,
+        "tier2": 0
+      }
+    },
+    "IMG_5118.MOV": {
+      "summary": {
+        "total_candidates": 2,
+        "confirmed_violations": 0,
+        "rejected_candidates": 2,
+        "rejection_reason_counts": {
+          "NOT_ENOUGH_CARRIED_FRAMES": 2
+        }
+      },
+      "recorded_at": 1789287355.6925,
+      "tiers_confirmed": {
+        "tier0": 0,
+        "tier1": 0,
+        "tier2": 0
+      }
+    },
+    "20260831_104342_IMG_5117.MOV": {
+      "summary": {
+        "total_candidates": 2,
+        "confirmed_violations": 0,
+        "rejected_candidates": 2,
+        "rejection_reason_counts": {
+          "EVENT_CONFIDENCE_TOO_LOW": 1,
+          "NO_RELEASE_TRANSITION": 1
+        }
+      },
+      "recorded_at": 1789169690.1751976,
+      "tiers_confirmed": {
+        "tier0": 0,
+        "tier1": 0,
+        "tier2": 1
+      }
+    },
+    "oracle_IMG_5290.MOV": {
+      "summary": {
+        "total_candidates": 4,
+        "confirmed_violations": 1,
+        "rejected_candidates": 3,
+        "rejection_reason_counts": {
+          "NO_RELEASE_TRANSITION": 1,
+          "NOT_ENOUGH_CARRIED_FRAMES": 2
+        }
+      },
+      "recorded_at": 1789201164.665791,
+      "tiers_confirmed": {
+        "tier0": 1,
+        "tier1": 0,
+        "tier2": 0
+      }
+    },
+    "IMG_5295.MOV": {
+      "summary": {
+        "total_candidates": 5,
+        "confirmed_violations": 2,
+        "rejected_candidates": 3,
+        "rejection_reason_counts": {
+          "NOT_ENOUGH_CARRIED_FRAMES": 3
+        }
+      },
+      "recorded_at": 1789215532.4445417,
+      "tiers_confirmed": {
+        "tier0": 2,
+        "tier1": 2,
+        "tier2": 2
+      }
+    },
+    "IMG_5115.MOV": {
+      "summary": {
+        "total_candidates": 2,
+        "confirmed_violations": 0,
+        "rejected_candidates": 2,
+        "rejection_reason_counts": {
+          "NOT_ENOUGH_CARRIED_FRAMES": 1,
+          "NO_RELEASE_TRANSITION": 1
+        }
+      },
+      "recorded_at": 1789216960.3981824,
+      "tiers_confirmed": {
+        "tier0": 0,
+        "tier1": 0,
+        "tier2": 0
+      }
+    },
+    "IMG_5119.MOV": {
+      "summary": {
+        "total_candidates": 1,
+        "confirmed_violations": 0,
+        "rejected_candidates": 1,
+        "rejection_reason_counts": {
+          "NO_CONFIDENT_EVENT": 1
+        }
+      },
+      "recorded_at": 1789217239.664178,
+      "tiers_confirmed": {
+        "tier0": 0,
+        "tier1": 0,
+        "tier2": 1
+      }
+    },
+    "IMG_5303.MOV": {
+      "summary": {
+        "total_candidates": 0,
+        "confirmed_violations": 0,
+        "rejected_candidates": 0,
+        "rejection_reason_counts": {}
+      },
+      "recorded_at": 1789217468.8677595,
+      "tiers_confirmed": {
+        "tier0": 0,
+        "tier1": 0,
+        "tier2": 0
+      }
+    },
+    "M.MOV": {
+      "summary": {
+        "total_candidates": 2,
+        "confirmed_violations": 2,
+        "rejected_candidates": 0,
+        "rejection_reason_counts": {}
+      },
+      "recorded_at": 1789217958.5190732,
+      "tiers_confirmed": {
+        "tier0": 2,
+        "tier1": 2,
+        "tier2": 2
+      }
+    },
+    "A.MOV": {
+      "summary": {
+        "total_candidates": 5,
+        "confirmed_violations": 2,
+        "rejected_candidates": 3,
+        "rejection_reason_counts": {
+          "NO_RELEASE_TRANSITION": 1,
+          "NOT_ENOUGH_CARRIED_FRAMES": 2
+        }
+      },
+      "recorded_at": 1789218491.2185032,
+      "tiers_confirmed": {
+        "tier0": 2,
+        "tier1": 1,
+        "tier2": 3
+      }
+    },
+    "IMG_5306.MOV": {
+      "summary": {
+        "total_candidates": 8,
+        "confirmed_violations": 2,
+        "rejected_candidates": 6,
+        "rejection_reason_counts": {
+          "BAG_NOT_DETECTED": 1,
+          "BIN_DISPOSAL": 1,
+          "NO_RELEASE_TRANSITION": 1,
+          "NOT_ENOUGH_CARRIED_FRAMES": 3
+        }
+      },
+      "recorded_at": 1789239236.3855734,
+      "tiers_confirmed": {
+        "tier0": 2,
+        "tier1": 2,
+        "tier2": 2
+      }
+    }
+  }
+}

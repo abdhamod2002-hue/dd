@@ -632,16 +632,24 @@ def _run_video_analysis_job(job_id: int):
         # Import AI pipeline components
         import cv2
         from backend.routers.evidence import EVIDENCE_STORE
+        from backend.services.video_normalizer import ensure_cfr_source
         from inference.capture.camera_source import VideoFileSource
         from inference.detection.yolo_detector import YoloDetector
         from inference.pose.movenet_pose import MovenetPose
         from inference.tracking.bytetrack_tracker import BytetrackTracker
         from inference.detection.novelty_detector import NoveltyDetector, NoveltyConfig
         from inference.pipeline import InferencePipeline, PipelineConfig
+        from inference.runtime_determinism import (
+            configure_determinism,
+            determinism_enabled_from_env,
+        )
         from inference.visualization import build_frame_analysis, render_analysis_frame
         from inference.visualization.evidence_package import write_event_evidence_package
         from scripts.run_pipeline import build_tracks_real
         from littering_event_detector import annotate_detector_frame
+
+        deterministic = determinism_enabled_from_env()
+        determinism_report = configure_determinism(0) if deterministic else {"configured": False}
 
         # Ensure Camera record exists for "Uploaded Video"
         cam = db.query(models.Camera).filter(models.Camera.name == f"Video: {job.original_filename}").first()
@@ -680,11 +688,41 @@ def _run_video_analysis_job(job_id: int):
                 return
             path = candidate
 
+        # Per-job analysis workspace (CFR source + overlays live here).
+        analysis_dir = EVIDENCE_STORE / "analysis" / str(job.id)
+        analysis_dir.mkdir(parents=True, exist_ok=True)
+
+        # Section 2 — normalize VFR (iPhone) → CFR before OpenCV reads frames.
+        # Pipeline always consumes the CFR file; the archived original stays
+        # at job.original_video_path for side-by-side review.
+        stage_tracker.update_stage_detail(
+            "video_input",
+            f"Re-encoding to constant frame rate (CFR) from {path.name}",
+        )
+        try:
+            cfr_path = Path(ensure_cfr_source(path, analysis_dir, stem="source_CFR"))
+            path = cfr_path
+        except Exception as exc:
+            stage_tracker.fail_stage("video_input", f"Video CFR normalize failed: {exc}")
+            job.status = "failed"
+            job.error_message = f"Video CFR normalize failed: {exc}"
+            job.completed_at = datetime.now(timezone.utc)
+            job.report_json = _fit_report_json(stage_tracker.build_telemetry(
+                job_id=job.id,
+                status="failed",
+                processed_frames=0,
+                total_frames=None,
+                error_message=job.error_message,
+            ))
+            db.commit()
+            db.close()
+            return
+
         source = VideoFileSource(str(path))
         if not source.open():
-            stage_tracker.fail_stage("video_input", f"OpenCV could not open video stream {job.file_path}")
+            stage_tracker.fail_stage("video_input", f"OpenCV could not open CFR stream {path}")
             job.status = "failed"
-            job.error_message = f"Could not open video file {job.file_path}"
+            job.error_message = f"Could not open normalized video file {path}"
             job.completed_at = datetime.now(timezone.utc)
             job.report_json = _fit_report_json(stage_tracker.build_telemetry(
                 job_id=job.id,
@@ -702,13 +740,15 @@ def _run_video_analysis_job(job_id: int):
         job.duration_sec = source.duration_seconds
         stage_tracker.complete_stage(
             "video_input",
-            f"Decoded stream: {source.total_frames} frames ({float(source.fps or 0):.1f} fps, {source.width}x{source.height})"
+            f"Decoded CFR stream: {source.total_frames} frames ({float(source.fps or 0):.1f} fps, {source.width}x{source.height})"
         )
         db.commit()
 
-        # Load models
+        # Load models — brand-new detector/tracker/pose/novelty per job (no
+        # cross-video ByteTrack / color-tracker / FSM state reuse).
         detector = YoloDetector()
         detector.load()
+        detector.reset_tracking()
         tracker = BytetrackTracker()
         tracker.load()
 
@@ -734,6 +774,9 @@ def _run_video_analysis_job(job_id: int):
             # rescues threshold-brittle videos WITHOUT touching events that
             # the production config already confirms.
             auto_tune=True,
+            # Section 3 — freeze learning.json writes so re-running the same
+            # upload cannot mutate tier thresholds between runs.
+            deterministic=deterministic,
         )
         pipe = InferencePipeline(pipeline_cfg)
         pipe.event_detector.reset()
@@ -743,8 +786,6 @@ def _run_video_analysis_job(job_id: int):
         except Exception:
             pass
 
-        analysis_dir = EVIDENCE_STORE / "analysis" / str(job.id)
-        analysis_dir.mkdir(parents=True, exist_ok=True)
         analyzed_path = analysis_dir / "analyzed.mp4"
         writer: Optional[cv2.VideoWriter] = None
         writer_fps = float(source.fps or 30.0)
@@ -1289,6 +1330,14 @@ def _run_video_analysis_job(job_id: int):
 
         report = {
             "source": job.original_filename,
+            "analysis_source": "source_CFR.mp4",
+            "determinism": {
+                "enabled": deterministic,
+                "report": determinism_report,
+                "learning_writes_frozen": bool(
+                    getattr(pipe.event_detector, "freeze_learning_writes", False)
+                ),
+            },
             "duration_sec": round(source.duration_seconds, 2),
             "total_frames": source.total_frames,
             "processed_frames": frame_idx,

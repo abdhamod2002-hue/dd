@@ -120,6 +120,79 @@ def get_event_review(event_id: int, db: Session = Depends(get_db)) -> schemas.Ev
     )
 
 
+@router.post("/{event_id}/verdict", response_model=schemas.EventVerdictOut)
+def submit_event_verdict(
+    event_id: int,
+    body: schemas.EventVerdictIn,
+    db: Session = Depends(get_db),
+) -> schemas.EventVerdictOut:
+    """Record operator confirm/reject → ``data/incoming/.../verdict.json`` (Section 7).
+
+    ``reject`` is treated as a hard-negative for offline YOLO fine-tuning.
+    Does NOT mutate model weights or FSM thresholds mid-session.
+    """
+    from pathlib import Path
+
+    from learning_offline.ingest import write_verdict
+
+    event = db.query(models.Event).filter(models.Event.id == event_id).first()
+    if event is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Event {event_id} not found",
+        )
+    verdict = str(body.verdict).strip().lower()
+    if verdict not in ("confirm", "reject"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="verdict must be 'confirm' or 'reject'",
+        )
+
+    evidence = (
+        db.query(models.Evidence)
+        .filter(models.Evidence.event_id == event_id)
+        .order_by(models.Evidence.id.asc())
+        .all()
+    )
+    crop_paths = {}
+    for ev in evidence:
+        if ev.waste_image_path:
+            crop_paths["crop_waste.jpg"] = Path(ev.waste_image_path)
+        if ev.person_image_path:
+            crop_paths["crop_person.jpg"] = Path(ev.person_image_path)
+        if crop_paths:
+            break
+
+    try:
+        out_dir = write_verdict(
+            event_id,
+            verdict,
+            notes=body.notes or "",
+            crop_paths=crop_paths,
+            metadata={
+                "camera_id": event.camera_id,
+                "object_type": event.object_type,
+                "confidence": event.confidence,
+                "analysis_job_id": event.analysis_job_id,
+            },
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    # Mirror status for dashboard filters (confirmed / rejected).
+    event.status = "confirmed" if verdict == "confirm" else "rejected"
+    db.add(event)
+    db.commit()
+
+    return schemas.EventVerdictOut(
+        event_id=event_id,
+        verdict=verdict,
+        status=event.status,
+        incoming_dir=str(out_dir),
+        verdict_path=str(out_dir / "verdict.json"),
+    )
+
+
 @router.post(
     "",
     response_model=schemas.EventOut,

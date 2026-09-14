@@ -79,7 +79,7 @@ def test_source_id_spaces_are_disjoint():
     from inference.detection.yolo_detector import TrackedDetection
     from inference.tracking.bytetrack_tracker import BytetrackTracker
 
-    trk = BytetrackTracker()
+    trk = BytetrackTracker(min_confirm_frames=1)
     person = TrackedDetection(1, "person", 0.9, (0, 0, 50, 100), (25, 50), True, source="yolo")
     obj_yolo = TrackedDetection(1, "bottle", 0.7, (0, 0, 20, 20), (10, 10), False, source="yolo")
     # color_detector pre-offsets raw color ids by +50000; novelty by +100000
@@ -89,7 +89,9 @@ def test_source_id_spaces_are_disjoint():
                                  source="color")
     nov = TrackedDetection(100009, "detected_object", 0.5, (0, 0, 20, 20), (10, 10), False,
                            source="novelty")
-    persons, objects = trk.to_tracks([person, obj_yolo, obj_color, nov])
+    batch = [person, obj_yolo, obj_color, nov]
+    trk.update(batch, frame_index=0)
+    persons, objects = trk.to_tracks(batch)
     assert len(persons) == 1 and persons[0].track_id < 10000
     obj_ids = sorted(o.track_id for o in objects)
     # yolo raw1 -> 10001; color detector pre-offset 50005 -> 60005 (color's 50000
@@ -136,12 +138,13 @@ def test_frame_record_carries_detector_source():
     from inference.detection.yolo_detector import TrackedDetection
     from inference.tracking.bytetrack_tracker import BytetrackTracker
 
-    trk = BytetrackTracker()
+    trk = BytetrackTracker(min_confirm_frames=1)
     tracked = [
         TrackedDetection(1, "person", 0.9, (0, 0, 50, 100), (25, 50), True, source="yolo"),
         TrackedDetection(7, "detected_object", 0.5, (0, 0, 20, 20), (10, 10), False,
                          source="novelty"),
     ]
+    trk.update(tracked, frame_index=0)
     persons, objects = trk.to_tracks(tracked)
     rec = {
         "persons": [{"id": p.track_id, "src": p.source} for p in persons],

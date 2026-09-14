@@ -1,0 +1,56 @@
+{
+  "version": 2,
+  "description": "Executable acceptance matrix for D:\\\\22 real iPhone validation clips. Labels synced with evaluation/frozen_test_set.v1.json (Section 5c).",
+  "video_root": "D:/22",
+  "docker_mount": "/data/22",
+  "outcomes": [
+    "NO_EVENT",
+    "LITTER",
+    "BIN",
+    "PICKUP",
+    "MULTI_PERSON",
+    "UNKNOWN"
+  ],
+  "clips": [
+    {"file": "IMG_5117.MOV", "expected_outcome": "LITTER", "notes": "Yellow/garbage bag ground litter; primary P0 acceptance clip"},
+    {"file": "IMG_5115.MOV", "expected_outcome": "NO_EVENT", "notes": "Hard negative: carry only, clip cuts before release"},
+    {"file": "IMG_5118.MOV", "expected_outcome": "LITTER", "notes": "Multi-person; only litterer may be accused"},
+    {"file": "IMG_5119.MOV", "expected_outcome": "LITTER", "notes": "Carry, drop, depart"},
+    {"file": "IMG_5287.MOV", "expected_outcome": "UNKNOWN", "notes": ""},
+    {"file": "IMG_5288.MOV", "expected_outcome": "UNKNOWN", "notes": ""},
+    {"file": "IMG_5290.MOV", "expected_outcome": "LITTER", "notes": "Ground litter ~13–19s; dumpster present"},
+    {"file": "IMG_5291.MOV", "expected_outcome": "UNKNOWN", "notes": ""},
+    {"file": "IMG_5292.MOV", "expected_outcome": "UNKNOWN", "notes": ""},
+    {"file": "IMG_5295.MOV", "expected_outcome": "LITTER", "notes": "Bottle ground litter past dumpster"},
+    {"file": "IMG_5296.MOV", "expected_outcome": "UNKNOWN", "notes": ""},
+    {"file": "IMG_5298.MOV", "expected_outcome": "UNKNOWN", "notes": ""},
+    {"file": "IMG_5299.MOV", "expected_outcome": "UNKNOWN", "notes": ""},
+    {"file": "IMG_5301.MOV", "expected_outcome": "UNKNOWN", "notes": ""},
+    {"file": "IMG_5302.MOV", "expected_outcome": "UNKNOWN", "notes": ""},
+    {"file": "IMG_5303.MOV", "expected_outcome": "NO_EVENT", "notes": "Hard negative: pedestrians, no waste"},
+    {"file": "IMG_5305.MOV", "expected_outcome": "NO_EVENT", "notes": "Hard negative: bin/red-bag disposal must not confirm as ground litter"},
+    {"file": "IMG_5306.MOV", "expected_outcome": "LITTER", "notes": "Long clip; exactly one ground litter (~107s); bin disposals must not confirm"},
+    {"file": "A.MOV", "expected_outcome": "LITTER", "notes": "Late-entry litter ~21s"},
+    {"file": "C.MOV", "expected_outcome": "UNKNOWN", "notes": ""},
+    {"file": "D.MOV", "expected_outcome": "UNKNOWN", "notes": ""},
+    {"file": "M.MOV", "expected_outcome": "LITTER", "notes": "Street drop then depart"}
+  ],
+  "pass_criteria": {
+    "LITTER": "confirmed_violations >= 1 AND Event row with non-null actor/object UIDs AND ForensicAssetPanel shows matching person+waste",
+    "NO_EVENT": "confirmed_violations == 0 AND events_count == 0",
+    "BIN": "no VIOLATION_CONFIRMED OR rejection BIN_ZONE_DEPOSIT / NO_CONFIDENT_EVENT",
+    "PICKUP": "PICKED_BACK_UP rejection or zero confirmed",
+    "MULTI_PERSON": "confirmed actor UID matches labeled litterer only"
+  },
+  "metrics": {
+    "frozen_set": "evaluation/frozen_test_set.v1.json",
+    "runner": "evaluation/run_frozen_eval.py",
+    "formulas": {
+      "precision": "TP / (TP + FP)",
+      "recall": "TP / (TP + FN)",
+      "f1": "2 * precision * recall / (precision + recall)",
+      "temporal_delta_t_sec": 3.0,
+      "temporal_t_max_sec": 10.0
+    }
+  }
+}

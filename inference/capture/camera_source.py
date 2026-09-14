@@ -164,10 +164,11 @@ class VideoFileSource:
         ok, frame = self._cap.read()
         if not ok or frame is None:
             return None
+        # Deterministic timeline for file sources: never anchor to wall-clock
+        # (wall-clock start made analysis-tick scheduling differ across runs).
         if self._start_ts is None:
-            self._start_ts = time.time()
-        # synthetic wall-clock: advance by frame_index / fps
-        ts = self._start_ts + (self._frame_index / max(1.0, self.fps))
+            self._start_ts = 0.0
+        ts = float(self._start_ts) + (self._frame_index / max(1.0, self.fps))
         h, w = frame.shape[:2]
         pkt = FramePacket(frame=frame, timestamp=ts, frame_index=self._frame_index, width=w, height=h)
         self._frame_index += 1

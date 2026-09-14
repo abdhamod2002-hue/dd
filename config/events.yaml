@@ -16,6 +16,16 @@ DEPARTURE_MOTION_RATIO: 0.65
 RELEASE_DISTANCE_RATIO: 0.35
 STATIONARY_DISTANCE_RATIO: 0.15
 STATIONARY_WINDOW_FRAMES: 3
+
+# AIDM-Strat wrist↔bag gate (Sensors 2022 / Motared adaptation).
+# Paper used ~90 cm absolute; we normalize by person bbox diagonal.
+# attach (0.15) = still gripping; separate (0.30) = physical drop.
+AIDM_RELEASE_GATE_ENABLED: true
+# Empirically Motared FN clips (IMG_5290/A) peak wrist d_norm ≈0.21–0.22 while
+# still being true put-downs; the paper's 90cm absolute maps loosely — 0.20
+# restores release without reopening passerby FPs (attach remains 0.15).
+AIDM_WRIST_ATTACH_RATIO: 0.15
+AIDM_WRIST_SEPARATE_RATIO: 0.20
 # Absolute pixel cap on centroid drift across the stationarity window.
 # Complements the ratio above, which scales with bag size and therefore gives a
 # LARGE bag a large real-pixel movement budget. Phase 1 measurement on the 5
@@ -186,7 +196,7 @@ NOVELTY_MAX_ASPECT: 7.0
 NOVELTY_STATIONARY_FRAMES: 8
 NOVELTY_MATCH_DISTANCE: 70.0
 NOVELTY_DECAY_FRAMES: 12
-NOVELTY_MIN_CONFIDENCE: 0.30
+NOVELTY_MIN_CONFIDENCE: 0.40
 NOVELTY_ASSOC_MAX_DISTANCE: 250.0
 NOVELTY_CLASS_NAME: detected_object
 

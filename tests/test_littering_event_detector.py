@@ -305,13 +305,26 @@ def test_put_down_then_regrab_reclassified_picked_back_up():
     for _ in range(3):
         events.extend(detector.update([_person(1, 140, 180)], [_bag(10001, 140, 300)], t))
         t += 0.1
-    # Regrab immediately: lift well above the release centroid (y≈280 → y=160).
+    # Regrab immediately: lift well above the release centroid (y≈280 → y=160)
+    # with wrists ON the bag so AIDM attach (d_norm <= 0.15) allows reclaim.
     for y in (240, 200, 160, 150, 150):
-        events.extend(detector.update([_person(1, 140, 180)], [_bag(10001, 140, y)], t))
+        p = _person(1, 140, 180)
+        p.keypoints = DetectorKeypoints(
+            left_wrist=(140.0, float(y)),
+            right_wrist=(150.0, float(y) - 10.0),
+            torso_center=(140.0, 160.0),
+        )
+        events.extend(detector.update([p], [_bag(10001, 140, y)], t))
         t += 0.1
-    # Keep carrying it (held above the ground plane)
+    # Keep carrying it (held above the ground plane, wrists still gripping)
     for _ in range(6):
-        events.extend(detector.update([_person(1, 140, 180)], [_bag(10001, 140, 160)], t))
+        p = _person(1, 140, 180)
+        p.keypoints = DetectorKeypoints(
+            left_wrist=(140.0, 160.0),
+            right_wrist=(150.0, 150.0),
+            torso_center=(140.0, 160.0),
+        )
+        events.extend(detector.update([p], [_bag(10001, 140, 160)], t))
         t += 0.1
 
     confirmed = [e for e in events if e.confirmed]

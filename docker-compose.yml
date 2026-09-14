@@ -31,6 +31,12 @@ services:
       PYTHONPATH: /app
       TFHUB_CACHE_DIR: /app/models/movenet
       ANALYSIS_FPS: "8"
+      MOTARED_DETERMINISTIC: "1"
+      TF_ENABLE_ONEDNN_OPTS: "0"
+      PYTHONHASHSEED: "0"
+      CUBLAS_WORKSPACE_CONFIG: ":4096:8"
+      TF_DETERMINISTIC_OPS: "1"
+      TF_CUDNN_DETERMINISTIC: "1"
     ports:
       - "8000:8000"
     volumes:

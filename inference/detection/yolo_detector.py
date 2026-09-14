@@ -231,7 +231,7 @@ class YoloDetector:
         litter_weights: str = "inference/detection/weights/best.pt",
         person_weights: str = "yolov8n.pt",
         person_conf: float = 0.4,
-        litter_conf: float = 0.35,
+        litter_conf: float = 0.4,
         device: str = "cpu",
         fallback_coco_classes: bool = True,
         color_fallback: bool = True,
@@ -246,7 +246,10 @@ class YoloDetector:
         # the approved human-annotated ``garbage_bag_v2.pt`` (Roboflow CC BY 4.0
         # dataset, human labels, 1 class "Garbage Bag") if present.
         bag_weights: Optional[str] = None,
-        bag_conf: float = 0.25,
+        bag_conf: float = 0.4,
+        # NMS IoU — slightly tighter than ultralytics default 0.7 to cut
+        # overlapping phantom boxes on long CCTV clips (Section 4).
+        iou: float = 0.5,
     ) -> None:
         self.litter_weights = litter_weights
         self.person_weights = person_weights
@@ -254,6 +257,7 @@ class YoloDetector:
         self.litter_conf = litter_conf
         self.device = device
         self.imgsz = int(imgsz)
+        self.iou = float(iou)
         # When the litter model (best.pt) is absent, fall back to emitting
         # non-person COCO classes (bottle, cup, ...) from the person model so
         # the pipeline can still track litter-likely objects. This keeps the
@@ -276,6 +280,19 @@ class YoloDetector:
         self._bag_model = None
         self._litter_classes: Optional[List[str]] = None
         self._bag_classes: Optional[List[str]] = None
+
+    @staticmethod
+    def _consume_results(results) -> list:
+        """Consume ultralytics Results (list or stream generator) into a list.
+
+        ``stream=True`` returns a generator — required for long videos so
+        intermediate tensors are not retained across the whole clip.
+        """
+        if results is None:
+            return []
+        if isinstance(results, list):
+            return results
+        return list(results)
 
     @staticmethod
     def _resolve_bag_weights() -> Optional[str]:
@@ -340,7 +357,12 @@ class YoloDetector:
         out: List[Detection] = []
 
         # people (+ fallback non-person COCO classes when the litter model is absent)
-        for r in self._person_model(frame, conf=self.person_conf, device=self.device, imgsz=self.imgsz, verbose=False):
+        for r in self._consume_results(
+            self._person_model(
+                frame, conf=self.person_conf, device=self.device, imgsz=self.imgsz,
+                iou=self.iou, half=False, stream=True, verbose=False,
+            )
+        ):
             for box in r.boxes:
                 x1, y1, x2, y2 = map(float, box.xyxy[0].tolist())
                 conf = float(box.conf[0])
@@ -357,7 +379,12 @@ class YoloDetector:
 
         # litter (custom model)
         if self._litter_model is not None:
-            for r in self._litter_model(frame, conf=self.litter_conf, device=self.device, imgsz=self.imgsz, verbose=False):
+            for r in self._consume_results(
+                self._litter_model(
+                    frame, conf=self.litter_conf, device=self.device, imgsz=self.imgsz,
+                    iou=self.iou, half=False, stream=True, verbose=False,
+                )
+            ):
                 for box in r.boxes:
                     x1, y1, x2, y2 = map(float, box.xyxy[0].tolist())
                     conf = float(box.conf[0])
@@ -368,7 +395,12 @@ class YoloDetector:
 
         # dedicated waste-bag model (added in addition to the litter model)
         if self._bag_model is not None:
-            for r in self._bag_model(frame, conf=self.bag_conf, device=self.device, imgsz=self.imgsz, verbose=False):
+            for r in self._consume_results(
+                self._bag_model(
+                    frame, conf=self.bag_conf, device=self.device, imgsz=self.imgsz,
+                    iou=self.iou, half=False, stream=True, verbose=False,
+                )
+            ):
                 for box in r.boxes:
                     x1, y1, x2, y2 = map(float, box.xyxy[0].tolist())
                     conf = float(box.conf[0])
@@ -401,18 +433,24 @@ class YoloDetector:
         out: List[TrackedDetection] = []
 
         # people (ByteTrack, persist keeps IDs stable across calls)
-        for r in self._person_model.track(
-            frame, conf=self.person_conf, device=self.device, imgsz=self.imgsz,
-            tracker="bytetrack.yaml", persist=persist, verbose=False,
+        for r in self._consume_results(
+            self._person_model.track(
+                frame, conf=self.person_conf, device=self.device, imgsz=self.imgsz,
+                iou=self.iou, tracker="bytetrack.yaml", persist=persist,
+                half=False, stream=True, verbose=False,
+            )
         ):
             out.extend(self._parse_tracked(r, is_person=True, naming_model=self._person_model,
                                            allow_fallback=self._litter_model is None and self._fallback_coco_classes))
 
         # litter (separate tracker instance via separate model.track calls)
         if self._litter_model is not None:
-            for r in self._litter_model.track(
-                frame, conf=self.litter_conf, device=self.device, imgsz=self.imgsz,
-                tracker="bytetrack.yaml", persist=persist, verbose=False,
+            for r in self._consume_results(
+                self._litter_model.track(
+                    frame, conf=self.litter_conf, device=self.device, imgsz=self.imgsz,
+                    iou=self.iou, tracker="bytetrack.yaml", persist=persist,
+                    half=False, stream=True, verbose=False,
+                )
             ):
                 out.extend(self._parse_tracked(r, is_person=False, naming_model=self._litter_model))
 
@@ -420,9 +458,12 @@ class YoloDetector:
         # detections carry class "waste_bag" and source="yolo" so the event
         # detector's bag logic treats them as real confirmed objects)
         if self._bag_model is not None:
-            for r in self._bag_model.track(
-                frame, conf=self.bag_conf, device=self.device, imgsz=self.imgsz,
-                tracker="bytetrack.yaml", persist=persist, verbose=False,
+            for r in self._consume_results(
+                self._bag_model.track(
+                    frame, conf=self.bag_conf, device=self.device, imgsz=self.imgsz,
+                    iou=self.iou, tracker="bytetrack.yaml", persist=persist,
+                    half=False, stream=True, verbose=False,
+                )
             ):
                 out.extend(self._parse_tracked(r, is_person=False, naming_model=self._bag_model))
 

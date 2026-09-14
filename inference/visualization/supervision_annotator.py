@@ -66,6 +66,13 @@ def _is_proposal(obj: Any) -> bool:
         return False
     return True
 
+def _draw_proposals_enabled() -> bool:
+    """Novelty/color proposals clutter long analyzed videos — off by default."""
+    import os
+    raw = os.environ.get("MOTARED_DRAW_PROPOSALS", "0").strip().lower()
+    return raw in {"1", "true", "yes", "on"}
+
+
 def frame_analysis_to_detections(analysis: Any) -> Tuple[Any, Any, Any]:
     """Convert FrameAnalysis persons/objects to sv.Detections triplet.
 
@@ -75,6 +82,8 @@ def frame_analysis_to_detections(analysis: Any) -> Tuple[Any, Any, Any]:
     """
     if sv is None:
         return None, None, None
+
+    draw_proposals = _draw_proposals_enabled()
 
     # Persons
     person_xyxy: List[List[float]] = []
@@ -99,7 +108,6 @@ def frame_analysis_to_detections(analysis: Any) -> Tuple[Any, Any, Any]:
     waste_tid: List[int] = []
     waste_names: List[str] = []
     waste_states: List[str] = []
-
     proposal_xyxy: List[List[float]] = []
     proposal_conf: List[float] = []
     proposal_cls: List[int] = []
@@ -109,6 +117,8 @@ def frame_analysis_to_detections(analysis: Any) -> Tuple[Any, Any, Any]:
     for o in getattr(analysis, "objects", []) or []:
         x1, y1, x2, y2 = o.bbox
         if _is_proposal(o):
+            if not draw_proposals:
+                continue
             proposal_xyxy.append([float(x1), float(y1), float(x2), float(y2)])
             proposal_conf.append(float(getattr(o, "confidence", 0.0) or 0.0))
             proposal_cls.append(1)

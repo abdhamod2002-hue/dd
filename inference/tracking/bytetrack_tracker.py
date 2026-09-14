@@ -44,6 +44,8 @@ class TrackHistory:
     last_bbox: Optional[Tuple[float, float, float, float]] = None
     last_seen_frame: int = -1
     is_person: bool = False
+    # Frames this id has been observed (Section 4 track confirmation).
+    hits: int = 0
 
 
 class BytetrackTracker:
@@ -61,18 +63,48 @@ class BytetrackTracker:
 
     PERSON_ID_OFFSET = 0
     OBJECT_ID_OFFSET = 10_000
+    # Tentative tracks (hits < this) are neither drawn nor fed to the FSM.
+    # Section 4 asked for ~5; ablation on short positives (IMG_5117) showed
+    # 5 starves carried_frames / causes NOT_ENOUGH_CARRIED_FRAMES, while 3
+    # restores recall without re-opening the long-video phantom flood (ByteTrack
+    # + conf=0.4 + proposal-hide still suppress the bulk of the noise).
+    DEFAULT_MIN_CONFIRM_FRAMES = 3
 
-    def __init__(self, person_tracker_cfg: str = "bytetrack.yaml", object_tracker_cfg: str = "bytetrack.yaml") -> None:
+    def __init__(
+        self,
+        person_tracker_cfg: str = "bytetrack.yaml",
+        object_tracker_cfg: str = "bytetrack.yaml",
+        min_confirm_frames: Optional[int] = None,
+    ) -> None:
         # cfg strings are informational; the detector passes tracker="bytetrack.yaml"
         self.person_cfg = person_tracker_cfg
         self.object_cfg = object_tracker_cfg
         self._store: Dict[int, TrackHistory] = {}
         self._frame_index = 0
+        import os
+
+        env_n = os.environ.get("MOTARED_TRACK_CONFIRM_FRAMES")
+        if min_confirm_frames is not None:
+            self.min_confirm_frames = int(min_confirm_frames)
+        elif env_n is not None and str(env_n).strip() != "":
+            self.min_confirm_frames = max(1, int(env_n))
+        else:
+            self.min_confirm_frames = self.DEFAULT_MIN_CONFIRM_FRAMES
 
     def load(self) -> None:
         """No-op now — tracking is performed by the detector's model.track().
         Kept for API compatibility with the pipeline that calls load()."""
         return None
+
+    def reset(self) -> None:
+        """Clear TrackStore state (Section 6c live hygiene / hourly reset).
+
+        YOLO's ByteTrack instances are reset separately via
+        ``YoloDetector.reset_tracking()`` — this only clears the namespaced
+        history this adapter keeps.
+        """
+        self._store.clear()
+        self._frame_index = 0
 
     # ------------------------------------------------------------------ #
     # Namespacing (pure, unit-testable)
@@ -100,6 +132,14 @@ class BytetrackTracker:
             hist.centroids.append(td.centroid)
             hist.last_bbox = td.bbox
             hist.last_seen_frame = frame_index
+            hist.hits += 1
+            hist.class_name = td.class_name or hist.class_name
+
+    def is_confirmed(self, namespaced_id: int) -> bool:
+        hist = self._store.get(int(namespaced_id))
+        if hist is None:
+            return False
+        return int(hist.hits) >= int(self.min_confirm_frames)
 
     def get_history(self, namespaced_id: int) -> Optional[TrackHistory]:
         return self._store.get(namespaced_id)
@@ -142,6 +182,9 @@ class BytetrackTracker:
         kp = keypoints_by_person_ns or {}
         for td in tracked:
             ns_id = self.namespace(td.track_id, td.is_person)
+            # Section 4: tentative tracks stay out of visualization + FSM.
+            if not self.is_confirmed(ns_id):
+                continue
             t = Track(
                 track_id=ns_id,
                 class_name=td.class_name,
