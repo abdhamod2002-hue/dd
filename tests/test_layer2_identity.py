@@ -95,6 +95,10 @@ def test_same_frame_persons_never_share_uid():
     """Two different people visible in the SAME frame must never receive the
     same logical uid — even standing within the re-association distance."""
     mgr = PersonIdentityManager(max_age_frames=45, distance_threshold=200.0)
+    # Bound before the loop: `mapping` is read after it, and a loop that runs
+    # zero times would otherwise leave it undefined (the `sep_floor` NameError
+    # class — IMG_5291 / job 43).
+    mapping: dict = {}
     for f in range(30):
         mapping = _resolve_all(mgr, [_person(1, 140, 180), _person(2, 260, 180)], f)
         assert mapping[1] != mapping[2], f"uid collision at frame {f}: {mapping}"
@@ -121,6 +125,7 @@ def test_raw_id_switch_preserves_person_uid():
     re-appears at the same position under raw id 7: the logical uid must be
     preserved (spatial + temporal + geometry continuity)."""
     mgr = PersonIdentityManager(max_age_frames=45, distance_threshold=200.0)
+    mapping: dict = {}
     for f in range(10):
         mapping = _resolve_all(mgr, [_person(2, 300, 400)], f)
     uid_before = mapping[2]
@@ -139,6 +144,7 @@ def test_long_gap_does_not_force_identity():
     evidence is insufficient, a fresh uid is minted (spec: never invent
     continuity)."""
     mgr = PersonIdentityManager(max_age_frames=45, distance_threshold=200.0)
+    mapping: dict = {}
     for f in range(10):
         mapping = _resolve_all(mgr, [_person(2, 300, 400)], f)
     uid_before = mapping[2]
@@ -188,6 +194,26 @@ def test_object_uid_survives_short_detector_gap():
         _obj_update(mgr, [], f)
     res = _obj_update(mgr, [("trash_bag", (110, 110))], 15)
     assert res[0] == uid, "object re-appearing after a short gap must keep its uid"
+
+
+def test_size_mismatch_never_inherits_uid():
+    """RCM-06: a wildly larger object appearing near a small bag's last
+    position (same class family, centroid within range) must NOT inherit
+    that bag's uid — this is the general form of the M.MOV / IMG_5613
+    failure class (a static container inheriting a small bag's identity)."""
+    mgr = ObjectIdentityManager(distance_px=220.0, max_age_frames=120)
+    small_uid = None
+    for f in range(10):
+        res = _obj_update(mgr, [("trash_bag", (100, 100))], f)
+        small_uid = res[0]
+    # A MUCH larger detection (container-scale) appears near the same spot,
+    # same class family, well within the centroid-distance radius.
+    dets = [("trash_bag", (400.0, 400.0, 700.0, 900.0), (100, 100))]
+    res = mgr.update(dets)
+    assert res[0] != small_uid, (
+        "a container-scale detection must not inherit a handheld-bag uid "
+        "purely from centroid proximity and class-family overlap"
+    )
 
 
 def test_two_distinct_objects_never_merge():

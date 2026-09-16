@@ -58,6 +58,7 @@ class ObjectIdentityManager:
         distance_px: float = 220.0,
         max_age_frames: int = 120,
         start_uid: int = 100001,
+        size_ratio_min: float = 0.30,
     ) -> None:
         # uid -> record
         self.records: Dict[int, Dict] = {}
@@ -65,6 +66,16 @@ class ObjectIdentityManager:
         self.distance_px = float(distance_px)
         self.max_age = int(max_age_frames)
         self.frame = 0
+        # RCM-06 (forensic corrective plan): minimum bbox-area ratio
+        # (min(a,b)/max(a,b)) a candidate detection must share with a
+        # persistent record before it may inherit that record's uid, even
+        # when centroid distance and class family both match. Class-family
+        # tokens are broad (e.g. "bag" matches everything from a handheld
+        # pouch to a dumpster) and centroid proximity alone is easily
+        # satisfied by a container fragment near a real bag's last
+        # position — this closes that gap without requiring pixel-perfect
+        # size stability across genuine perspective/occlusion variance.
+        self.size_ratio_min = float(size_ratio_min)
 
     @property
     def _uids(self) -> Dict[int, Dict]:
@@ -90,12 +101,21 @@ class ObjectIdentityManager:
             fam = _tokens(cls)
             best_uid: Optional[int] = None
             best_d = self.distance_px
+            det_area = _area(bbox)
             for uid, rec in self.records.items():
                 if rec.get("claimed"):
                     continue
                 if self.frame - rec["last_seen"] > self.max_age:
                     continue
                 if not _family(fam, _tokens(rec["class_name"])):
+                    continue
+                # RCM-06: size continuity — a wildly different-sized
+                # detection (a container-scale box vs. a handheld-bag-scale
+                # record, or vice versa) must never inherit this uid, even
+                # when the centroid is close and the class family matches.
+                rec_area = _area(rec["bbox"])
+                size_ratio = min(rec_area, det_area) / max(rec_area, det_area)
+                if size_ratio < self.size_ratio_min:
                     continue
                 d = math.hypot(cen[0] - rec["centroid"][0], cen[1] - rec["centroid"][1])
                 if d <= best_d:
