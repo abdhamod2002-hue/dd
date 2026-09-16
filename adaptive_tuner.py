@@ -159,6 +159,91 @@ LEARNING_STEPS: Dict[str, List[Dict[str, Any]]] = {
 LEARNING_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "learning", "learning.json"
 )
+# P0-A: pinned snapshot used for inference reads. Online learning still writes
+# to learning.json; promote_learning_pin() copies live → pin explicitly.
+INFERENCE_PIN_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "learning", "inference_pin.json"
+)
+
+
+def _pin_snapshot_hash(pin_path: str = INFERENCE_PIN_PATH) -> Optional[str]:
+    """SHA-256 of the pinned inference snapshot (None when no pin)."""
+    import hashlib
+
+    try:
+        with open(pin_path, "rb") as f:
+            return hashlib.sha256(f.read()).hexdigest()[:16]
+    except OSError:
+        return None
+
+
+def _learning_source_mode(*, deterministic: bool) -> str:
+    """Return ``pin`` | ``none`` | ``live``.
+
+    * deterministic (upload / Motared default): pin or YAML-only — NEVER
+      live learning.json. An explicit ``MOTARED_LEARNING_SOURCE=live`` is
+      IGNORED here so a stray env cannot reopen the §26.2 read leak
+      (editing live step_index must not change a pinned run).
+    * explicit ``none`` | ``off`` | ``yaml`` always mean YAML-only.
+    * non-deterministic online path: live store (legacy adaptation) unless
+      overridden to pin/none.
+    """
+    raw = (os.environ.get("MOTARED_LEARNING_SOURCE") or "").strip().lower()
+    if deterministic:
+        if raw in {"none", "off", "yaml"}:
+            return "none"
+        # "live" is deliberately NOT honored under determinism (P0-A).
+        return "pin" if os.path.exists(INFERENCE_PIN_PATH) else "none"
+    if raw in {"pin", "none", "live", "off", "yaml"}:
+        if raw in {"off", "yaml"}:
+            return "none"
+        return raw
+    # Non-deterministic online path: live store (legacy adaptation).
+    return "live"
+
+
+def resolve_inference_overrides(
+    store: Optional["LearningStore"],
+    *,
+    deterministic: bool = False,
+) -> Optional[Dict[str, Any]]:
+    """Overrides applied to tier-0 for this detector construction (P0-A)."""
+    mode = _learning_source_mode(deterministic=deterministic)
+    if mode == "none":
+        return None
+    if mode == "pin":
+        if not os.path.exists(INFERENCE_PIN_PATH):
+            return None
+        return LearningStore(INFERENCE_PIN_PATH).learned_overrides()
+    # live
+    if store is None:
+        return None
+    return store.learned_overrides()
+
+
+def promote_learning_pin(
+    live_path: str = LEARNING_PATH,
+    pin_path: str = INFERENCE_PIN_PATH,
+) -> Dict[str, Any]:
+    """Copy live learning.json step_index into the inference pin (offline gate)."""
+    live = LearningStore(live_path)
+    pin_doc = {
+        "version": 1,
+        "pin_schema": 1,
+        "description": "Pinned inference overrides. Updated only via promote_learning_pin().",
+        "source_videos_analyzed": live.videos_analyzed,
+        "step_index": live.step_index(),
+        "adjusted_thresholds": live.learned_overrides(),
+        "rejection_reasons": {},
+        "history": {},
+        "promoted_at": time.time(),
+    }
+    os.makedirs(os.path.dirname(pin_path) or ".", exist_ok=True)
+    tmp = pin_path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(pin_doc, f, indent=2, ensure_ascii=False)
+    os.replace(tmp, pin_path)
+    return pin_doc
 
 
 class LearningStore:
@@ -335,17 +420,21 @@ class AdaptiveEventDetector:
         freeze_learning_writes: bool = False,
     ) -> None:
         self.deterministic = bool(deterministic)
-        # When deterministic, still *read* existing learning.json overrides so
-        # product behaviour matches production, but never mutate the file
-        # mid-session — otherwise re-running the same video changes tier
-        # thresholds between run N and N+1 (cross-video state leak).
+        # P0-A: freeze writes AND isolate reads from the live learning.json
+        # mutation path. Deterministic inference uses inference_pin.json (or
+        # YAML-only if no pin) — never the live store that other jobs mutate.
         self.freeze_learning_writes = bool(
             freeze_learning_writes or self.deterministic
         )
         self.store = store if store is not None else (
             LearningStore() if enable_learning else None
         )
-        learned = self.store.learned_overrides() if self.store else None
+        learned = resolve_inference_overrides(
+            self.store, deterministic=self.deterministic
+        )
+        self.learning_source = _learning_source_mode(
+            deterministic=self.deterministic
+        )
         self.tier_configs = build_tier_configs(base_config, learned, max_tiers)
         self._detectors: List[LitteringEventDetector] = [
             LitteringEventDetector(cfg, camera_id=camera_id)
@@ -523,9 +612,8 @@ class AdaptiveEventDetector:
     ) -> bool:
         """Suppress relaxed confirmations when tier-0 already rejected the
         same actor for missing carry / release / separation in-window."""
-        try:
-            pid = int(ev.person_track_id)
-        except Exception:
+        pid = self._actor_key(ev)
+        if pid is None:
             return False
         if ts is None:
             return False
@@ -533,12 +621,35 @@ class AdaptiveEventDetector:
             "NOT_ENOUGH_CARRIED_FRAMES",
             "NO_RELEASE_TRANSITION",
             "NO_PHYSICAL_SEPARATION",
+            # Tier-0 bin / dumpster-lip refusals must not be overturned by
+            # relaxed tiers (IMG_5305 hard negative vs IMG_5290 street drop).
+            "BIN_DISPOSAL",
+            "BIN_ZONE_DEPOSIT",
+            "NO_CONFIDENT_EVENT",
+            # RCM-12 (forensic corrective plan): a relaxed tier confirming
+            # a physical incident that tier-0 already resolved as an
+            # explicit RECLAIM, an unresolved ACTOR ambiguity, or a closer
+            # bystander is not "detector brittleness" the ladder should
+            # rescue — it is definitive contrary evidence about WHAT
+            # happened or WHO did it. These three are always vetoed below,
+            # unconditionally (unlike the carry/release-shortfall reasons,
+            # which the physical-separation check may still rescue).
+            "PICKED_BACK_UP",
+            "ASSOCIATION_AMBIGUOUS",
+            "OTHER_PERSON_CLOSER",
+        }
+        always_block = {
+            "NO_PHYSICAL_SEPARATION",
+            "BIN_DISPOSAL",
+            "BIN_ZONE_DEPOSIT",
+            "NO_CONFIDENT_EVENT",
+            "PICKED_BACK_UP",
+            "ASSOCIATION_AMBIGUOUS",
+            "OTHER_PERSON_CLOSER",
         }
         for rej in self.primary.rejected_events:
-            try:
-                if int(rej.person_track_id) != pid:
-                    continue
-            except Exception:
+            rej_pid = self._actor_key(rej)
+            if rej_pid is None or rej_pid != pid:
                 continue
             reason = getattr(rej, "reason", None)
             if reason not in weak:
@@ -556,7 +667,7 @@ class AdaptiveEventDetector:
             if rej_ts is None:
                 continue
             if abs(float(ts) - float(rej_ts)) <= self.DEDUP_WINDOW_SEC * 2.0:
-                if reason == "NO_PHYSICAL_SEPARATION":
+                if reason in always_block:
                     return True
                 # Carry/release shortfalls: still allow a relaxed rescue when
                 # the event shows real bag motion + separation (brittle but
@@ -583,6 +694,11 @@ class AdaptiveEventDetector:
             "videos_analyzed": (
                 self.store.videos_analyzed if self.store else 0
             ),
+            # P0-A: which snapshot produced THIS run's tier-0 thresholds.
+            "learning_source": self.learning_source,
+            "inference_pin_hash": (
+                _pin_snapshot_hash() if self.learning_source == "pin" else None
+            ),
         }
         return out
 
@@ -601,6 +717,29 @@ class AdaptiveEventDetector:
         )
 
     # ------------------------------------------------------------------ #
+    @staticmethod
+    def _actor_key(ev) -> Optional[int]:
+        """Stable actor identity for dedup/arbitration purposes.
+
+        RCM-09/RC-7 (forensic corrective plan): this MUST prefer the
+        stable ``event_actor_person_uid`` (frozen at carry time, survives
+        a raw tracker-id switch) over the raw ``person_track_id``. Keying
+        deduplication on the raw id let a person-track-id churn mid-arc
+        read as a "different person", producing more than one persisted
+        event for a single physical incident. Falls back to the raw id
+        only when no stable uid was populated (legacy/unit-test events).
+        """
+        uid = getattr(ev, "event_actor_person_uid", None)
+        if uid is not None:
+            try:
+                return int(uid)
+            except (TypeError, ValueError):
+                pass
+        try:
+            return int(ev.person_track_id)
+        except Exception:
+            return None
+
     def _is_duplicate(self, ev, ts: Optional[float]) -> bool:
         """True when this person already has a confirmation within the
         dedup window — either from the strict tier or from an earlier,
@@ -614,9 +753,8 @@ class AdaptiveEventDetector:
         already `_accept()`-ed (see module bug history: this previously
         caused every non-tier-0-confirmed event to be discarded on its very
         next read)."""
-        try:
-            pid = int(ev.person_track_id)
-        except Exception:
+        pid = self._actor_key(ev)
+        if pid is None:
             return False
         if ts is None:
             return False
@@ -646,9 +784,8 @@ class AdaptiveEventDetector:
             ts = ev.timestamps.get("confirmed") or ev.timestamps.get("departure")
         except Exception:
             ts = None
-        try:
-            pid = int(ev.person_track_id)
-        except Exception:
+        pid = self._actor_key(ev)
+        if pid is None:
             pid = -1
         self._emitted_confirmed.append((getattr(ev, "event_id", None), pid, ts))
         return ts
