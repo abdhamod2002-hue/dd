@@ -163,6 +163,8 @@ TUNABLE_THRESHOLD_KEYS: tuple = (
     "min_stationary_frames",
     "max_pair_age_frames",
     "max_fallback_tracker_gap_frames",
+    "max_track_gap_frames",
+    "max_object_jump_ratio",
     "min_event_confidence",
     "min_departed_frames",
     "confirmation_grace_frames",
@@ -323,6 +325,20 @@ class EventDetectorConfig:
     # 2026-09-10: 16 analysis-ticks (~2 s @8 fps) rejected real events after
     # brief occlusions; 40 ticks (~5 s) tolerates transient visual occlusions.
     max_fallback_tracker_gap_frames: int = 40
+    # Job 57: post-release continuity budget. Consecutive post-release analysis
+    # ticks in which the bound object is absent (not seen by any live track)
+    # while its release arc is not yet established on live ground evidence.
+    # 6 ticks (~0.75 s @8 fps) is long enough to bridge a tracker blink, but
+    # short enough that a genuinely dropped/stale object cannot drift through
+    # missing-bag settle into a false VIOLATION (M.MOV: 206→218 confirmed on
+    # stale coords). Once exceeded, the release is marked invalid until fresh
+    # live evidence re-arms it.
+    max_track_gap_frames: int = 6
+    # Job 57: impossible-bbox-jump gate, in person-heights. A bound object
+    # that reappears further than this from its last live centroid is treated
+    # as a different physical object: the old release is invalidated and the
+    # sighting may start a fresh arc instead of adopting the stale state.
+    max_object_jump_ratio: float = 1.5
     # Static ground-clutter suppression: a bag whose confidence is below this
     # AND that is not currently near/carried AND that sits on the ground plane
     # never enters FSM pair memory (e.g. a stationary NESCAFE tin on the floor).
@@ -762,6 +778,11 @@ class _PairMemory:
     # inside an operator-configured bin zone. > 0 with ground_evidence_frames
     # == 0 means the deposit happened INSIDE a bin -> BIN_ZONE_DEPOSIT.
     bin_zone_frames: int = 0
+    # Job-57: ground-evidence ticks observed while the object was LIVE-bound
+    # (a real sighting, not the frozen-release-pose credit on missing ticks).
+    # Continuity validity measures against this, never against synthetic
+    # ground credit — otherwise stale coords manufacture their own proof.
+    live_ground_ticks: int = 0
     release_person_centroid: Optional[Tuple[float, float]] = None
     release_person_height: float = 0.0
     # Bag centroid at the moment of release — used to detect a true pick-up lift.
@@ -800,6 +821,13 @@ class _PairMemory:
     # (true re-grip). Fixes IMG_5290 where peak d_norm≈0.21 is only visible for
     # a tick or two while clothing latch pulls the live box back near the wrist.
     aidm_separated: bool = False
+    # True when ground_evidence was credited synthetically for an AIDM dump
+    # with no live ground ticks (clothing remap). Distinguishes IMG_5290 from
+    # live-ground bin-lip confirms (IMG_5305).
+    aidm_synthetic_ground: bool = False
+    # True when BAG_CARRIED→RELEASED fired via AIDM separation without a
+    # concurrent geometric release (bin-lip vs street clothing-remap).
+    release_via_aidm_only: bool = False
     # CARRY-ORIGIN evidence (clutter suppression): accumulated handling cues.
     ever_contained: bool = False            # bag bbox ever >=25% inside person bbox
     ever_moved_with_person: bool = False    # bag ever moved in sync while carried
@@ -816,6 +844,34 @@ class _PairMemory:
     max_carry_norm_distance: float = 0.0
     # Adaptive release threshold, updated while carried.
     release_distance_threshold: float = 0.0
+    # --- Job-57 class: track-continuity validity for the post-release arc ---
+    # The post-release arc (release/ground/abandon evidence) is only valid
+    # while the SAME physical object's tracking continuity is reliable. Once
+    # the tracker drops the object or an implausible jump breaks identity,
+    # stale coordinates must not manufacture RELEASE or GROUND, and a new
+    # sighting must not silently adopt the old pair's role.
+    #
+    # release_invalid: the fired release is no longer trustworthy (object
+    # vanished before the ground arc could be established on live evidence).
+    # While True, RELEASED→ON_GROUND progress and confirmation are blocked;
+    # the pair may still establish a FRESH release on fresh evidence after a
+    # live rebind (recovery path).
+    release_invalid: bool = False
+    # Number of consecutive post-release analysis ticks with the bound
+    # object absent. Compared against ``max_track_gap_frames``; counted only
+    # while state is BAG_RELEASED/BAG_ON_GROUND and ground evidence is not yet
+    # established on LIVE sightings.
+    release_object_gap_ticks: int = 0
+    # Last live raw track id of the bound object (gap/jump accounting).
+    last_object_track_id: Optional[int] = None
+    # Last live object centroid + person height while the object is bound
+    # (jump accounting). None while absent.
+    last_object_centroid: Optional[Tuple[float, float]] = None
+    last_person_height: float = 0.0
+    # True once release→ground→confirm ran on LIVE sightings per
+    # _release_ground_live_ok() — freezes the arc as trustworthy against
+    # later churn (recovery arc, Job 18 / IMG_5290 style).
+    live_release_ground_ok: bool = False
     # Post-release physical separation evidence (clothing / held-item rejection).
     # max_post_release_norm_distance: peak centroid separation after release.
     # separated_frames: ticks after release with low containment OR bag outside
@@ -852,6 +908,21 @@ class _PairMemory:
         if not self.association_scores:
             return 0.0
         return sum(self.association_scores) / float(len(self.association_scores))
+
+
+def _bag_history_key(bag: "DetectorBag") -> int:
+    """Key for per-object temporal history (motion/stationarity).
+
+    RCM-01: this MUST resolve to the stable object uid when one has been
+    assigned (the normal production path, after ObjectIdentityManager has
+    run) so a raw tracker-id churn on the SAME physical object never
+    restarts its motion history. Falls back to the raw track id only when
+    no stable uid exists yet (e.g. isolated unit-test callers that never
+    run object-identity assignment) so history keying is never silently a
+    no-op in that path either.
+    """
+    uid = getattr(bag, "object_uid", None)
+    return int(uid) if uid is not None else int(bag.track_id)
 
 
 def _centroid(bbox: Tuple[float, float, float, float]) -> Tuple[float, float]:
@@ -1130,6 +1201,17 @@ class LitteringEventDetector:
         self._calibrated = False
         # What the auto-calibrator changed for THIS video (exposed in reports).
         self.calibration_report: Dict[str, Any] = {}
+        # THRESHOLD LIFECYCLE GUARD: _calibrate() mutates the shared config
+        # object in place (carry_motion_norm_px / departure_motion_ratio). A
+        # detector that is reset() and reused (live camera, tests, a second
+        # video on one instance) would otherwise start the next run from the
+        # PREVIOUS video's calibrated values — a stale cross-video threshold,
+        # the same failure family as an undefined one. reset() restores these
+        # from this snapshot so each video begins from configured defaults.
+        self._calibration_mutables: Dict[str, Any] = {
+            "carry_motion_norm_px": self.config.carry_motion_norm_px,
+            "departure_motion_ratio": self.config.departure_motion_ratio,
+        }
 
     # ------------------------------------------------------------------ #
     # Public API
@@ -1158,11 +1240,8 @@ class LitteringEventDetector:
         # proposals alone must never become WASTE events).
         semantic_bags = [b for b in valid_bags if _is_semantic_waste(b)]
         proposal_bags = [b for b in valid_bags if not _is_semantic_waste(b)]
-        # History + object identity operate on semantic bags only, so a flood of
-        # proposals cannot create stable UIDs or pollute the temporal state.
-        self._update_bag_history(semantic_bags)
 
-        # --- Assign STABLE object uids (BEFORE pair evaluation) -------------
+        # --- Assign STABLE object uids (BEFORE history AND pair evaluation) -
         # Spatial/temporal nearest-neighbour matching across tracker-id churn.
         # One physical object keeps one uid across short detector gaps; two
         # distinct physical objects never merge (per-frame reservation +
@@ -1178,6 +1257,18 @@ class LitteringEventDetector:
                 uid = obj_assignments.get(i)
                 if uid is not None:
                     b.object_uid = uid
+
+        # RCM-01 (forensic corrective plan / RC-1): history MUST be keyed by
+        # the STABLE object uid, assigned above, not by the raw tracker id.
+        # Motion/stationarity history keyed on the raw id restarts (len<2)
+        # every time the underlying tracker churns ids on the SAME physical
+        # object — exactly what a large static object (a container) does —
+        # so a perfectly stationary object was reading as "not yet known to
+        # be stationary" on every churn, defeating every static-object
+        # guard downstream. History + object identity operate on semantic
+        # bags only, so a flood of proposals cannot create stable UIDs or
+        # pollute the temporal state.
+        self._update_bag_history(semantic_bags)
 
         # --- Resolve raw person track ids -> stable person uids (BEFORE history) -
         # A track-id switch (ByteTrack re-assigns P2 -> P7) must NOT orphan the
@@ -1302,7 +1393,20 @@ class LitteringEventDetector:
                         key = (person_uid, self._bag_uid_counter)
                         mem = None
                     else:
-                        mem.bag_id = int(info.bag_id)
+                        # Job-57: a rebind across raw track ids is only safe if
+                        # continuity is plausible — the new sighting must be near
+                        # the pair's last LIVE centroid. An impossible jump means
+                        # a DIFFERENT physical object appeared: invalidate any
+                        # stale release arc so it cannot confirm on the old
+                        # evidence, and let the sighting start a FRESH arc
+                        # (fresh pair key) instead of adopting the stale role.
+                        if not self._rebind_continuity_ok(mem, info):
+                            self._invalidate_stale_release(mem)
+                            self._bag_uid_counter += 1
+                            key = (person_uid, self._bag_uid_counter)
+                            mem = None
+                        else:
+                            mem.bag_id = int(info.bag_id)
                 if mem is None:
                     # STATIC GROUND-CLUTTER GATE: a low-confidence object that
                     # is already resting on the ground plane and is NOT near or
@@ -1372,6 +1476,12 @@ class LitteringEventDetector:
             # dump while a clothing latch kept the FSM in BAG_CARRIED (IMG_5290).
             # If we had a real grip + enough carry + walk/separation evidence,
             # treat sustained bag loss as the dump (paper flips held→dumped).
+            # Job-57: the separation signal feeding this branch must itself be
+            # fresh — a LATCH latched long ago while the object is gone must
+            # not resurrect as a release. stale_latch blocks the
+            # ``mem.aidm_separated`` disjunct; a CURRENT wrist reading or proven
+            # walk evidence still suffices.
+            stale_latch = self._separation_stale(mem)
             if (
                 not bag_present
                 and mem.state == EventState.BAG_CARRIED
@@ -1379,7 +1489,7 @@ class LitteringEventDetector:
                 and mem.carried_frames >= max(2, int(cfg.min_carried_frames) - 1)
                 and mem.missing_frames >= max(2, int(cfg.feet_release_frames))
                 and (
-                    mem.aidm_separated
+                    (mem.aidm_separated and not stale_latch)
                     or mem.max_wrist_d_norm
                     >= float(cfg.aidm_wrist_separate_ratio)
                     or mem.ever_person_moved_while_carried
@@ -1389,6 +1499,7 @@ class LitteringEventDetector:
                 mem.release_frame = mem.release_frame or frame_index
                 mem.release_ts = mem.release_ts or timestamp
                 mem.aidm_separated = True
+                mem.release_via_aidm_only = True
                 mem.post_release_settle_streak = max(mem.post_release_settle_streak, 1)
                 mem.carried_flags.clear()
                 for _ in range(max(1, cfg.smoothing_window)):
@@ -1398,11 +1509,32 @@ class LitteringEventDetector:
             # stops (bag left the person carry band) so the pair loses its
             # semantic bag while still BAG_RELEASED / BAG_ON_GROUND. Continue
             # abandonment on missing-bag ticks so ground litter can confirm.
+            # Job-57 guard: this missing-bag progress is only legitimate while
+            # the release arc itself is still continuity-valid. Once the bound
+            # object has been absent longer than max_track_gap_frames, the arc
+            # is stale: stop drifting toward confirm and mark the release
+            # invalid so the pair cannot confirm on ghosts. A believable
+            # reappearance re-arms via the regular live path.
+            #
+            # RCM-05/RC-9 (forensic corrective plan): the gap counter must
+            # measure CURRENT continuity, not "have we EVER seen ground on
+            # this arc". Gating the increment on ``live_ground_ticks <= 0``
+            # permanently disabled this freshness check the instant any
+            # ground evidence had ever landed — an object that later
+            # disappeared for good could then drift to abandonment/departure
+            # on pure absence forever. The counter now always advances on a
+            # missing tick and is reset to 0 the moment the object is next
+            # seen live (see _advance_pair), so it is always "ticks since the
+            # object was last actually observed", independent of history.
             if (
                 not bag_present
                 and mem.state in (EventState.BAG_RELEASED, EventState.BAG_ON_GROUND)
                 and mem.release_frame is not None
             ):
+                mem.release_object_gap_ticks += 1
+                if mem.release_object_gap_ticks > int(cfg.max_track_gap_frames):
+                    self._invalidate_stale_release(mem)
+                    continue  # arc torn down this tick; no further settle credit
                 if mem.state == EventState.BAG_RELEASED:
                     mem.post_release_settle_streak += 1
                     need = max(2, int(cfg.min_stationary_frames) // 2)
@@ -1411,14 +1543,10 @@ class LitteringEventDetector:
                         mem.ground_frame = mem.ground_frame or frame_index
                         mem.ground_ts = mem.ground_ts or timestamp
                         mem.stationary_frames = max(mem.stationary_frames, need)
-                        # Missing-bag settle after an AIDM dump: the live box is
-                        # gone (often clothing remapped earlier). Credit ground
-                        # so dumpster-adjacent street drops are not BIN_DISPOSAL.
-                        if mem.bin_zone_frames == 0 and (
-                            mem.aidm_separated
-                            or self._release_pose_on_ground(mem)
-                            or mem.ever_person_moved_while_carried
-                        ):
+                        # Missing-bag settle after AIDM: credit ground only when
+                        # the frozen release pose is on the actor ground plane
+                        # (street drop). Dumpster swallows (IMG_5305) stay blocked.
+                        if mem.bin_zone_frames == 0 and self._release_pose_on_ground(mem):
                             mem.ground_evidence_frames = max(
                                 mem.ground_evidence_frames, 1
                             )
@@ -1427,7 +1555,7 @@ class LitteringEventDetector:
                     mem.stationary_frames = max(
                         mem.stationary_frames, mem.abandonment_frames
                     )
-                    if mem.bin_zone_frames == 0 and mem.aidm_separated:
+                    if mem.bin_zone_frames == 0 and self._release_pose_on_ground(mem):
                         mem.ground_evidence_frames = max(
                             mem.ground_evidence_frames, 1
                         )
@@ -1494,9 +1622,15 @@ class LitteringEventDetector:
         self._frame_index = 0
         self._last_timestamp = 0.0
         self._calibrated = False
+        self._calibration_start = 0
         self._person_height_samples = []
         self._person_step_samples = []
         self.calibration_report = {}
+        # Restore any thresholds the previous video's auto-calibration wrote
+        # into the shared config object (see _calibration_mutables). Without
+        # this, a reused detector starts from another video's scene scale.
+        for key, value in self._calibration_mutables.items():
+            setattr(self.config, key, value)
 
     # ------------------------------------------------------------------ #
     # Per-video auto-calibration                                          #
@@ -1565,10 +1699,11 @@ class LitteringEventDetector:
     def _update_bag_history(self, bags: List[DetectorBag]) -> None:
         maxlen = max(3, int(self.config.smoothing_window) + 2, int(self.config.stationary_window_frames) + 2)
         for bag in bags:
-            hist = self._bag_history.get(bag.track_id)
+            key = _bag_history_key(bag)
+            hist = self._bag_history.get(key)
             if hist is None:
                 hist = deque(maxlen=maxlen)
-                self._bag_history[bag.track_id] = hist
+                self._bag_history[key] = hist
             hist.append((float(bag.timestamp), _centroid(bag.bbox)))
 
     def _person_uid_of(self, track_id: int) -> int:
@@ -1592,7 +1727,7 @@ class LitteringEventDetector:
             hist.append(_centroid(person.bbox))
 
     def _is_stationary(self, bag: DetectorBag, person_height: float) -> bool:
-        hist = self._bag_history.get(bag.track_id)
+        hist = self._bag_history.get(_bag_history_key(bag))
         if not hist or len(hist) < 2:
             return False
         window = max(2, int(self.config.stationary_window_frames))
@@ -1667,7 +1802,7 @@ class LitteringEventDetector:
         # past it. Person steps come from the rolling person history (kept
         # every tick); bag steps from the bag history.
         p_step = _mean_step(self._person_history.get(self._person_uid_of(int(person.track_id))), 3)
-        b_hist = self._bag_history.get(int(bag.track_id))
+        b_hist = self._bag_history.get(_bag_history_key(bag))
         # _mean_step consumes a list of centroid POINTS (same as the person
         # history); the bag history stores (timestamp, centroid) tuples, so
         # strip the timestamps here.
@@ -1740,7 +1875,7 @@ class LitteringEventDetector:
         pose_components: Dict[str, Optional[float]] = {}
         score = legacy_score
         if cfg.pose_association_enabled and cfg.pose_score_blend > 0.0:
-            bag_hist = self._bag_history.get(int(bag.track_id))
+            bag_hist = self._bag_history.get(_bag_history_key(bag))
             bag_centroids = [c for _, c in bag_hist] if bag_hist else None
             pose_score, pose_components = _pose_association_score(
                 person, bag,
@@ -1933,6 +2068,51 @@ class LitteringEventDetector:
         mem.association_scores = deque(maxlen=cfg.smoothing_window)
         return mem
 
+    def _rebind_continuity_ok(self, mem: _PairMemory, info: _PairInfo) -> bool:
+        """True when rebinding ``mem`` to ``info``'s raw track id is plausible.
+
+        Job-57: continuity requires (a) no class change across the rebind and
+        (b) no impossible bbox jump from the pair's last live centroid. Fresh
+        pairs with no live centroid yet always pass.
+        """
+        if info.bag_class != mem.bag_class:
+            return False
+        if mem.last_object_centroid is None or info.bag_centroid is None:
+            return True
+        ref_h = float(mem.last_person_height or 0.0)
+        if ref_h <= 1.0:
+            return True
+        jump = _dist(mem.last_object_centroid, info.bag_centroid) / ref_h
+        return bool(jump <= float(self.config.max_object_jump_ratio))
+
+    def _invalidate_stale_release(self, mem: _PairMemory) -> None:
+        """Invalidate a release arc whose object continuity broke (Job-57).
+
+        Clears the fired-but-unproven release + separation latches so stale
+        coords can never manufacture ground/confirmation. The carried history
+        stays (a fresh release may still fire on live evidence after rebind).
+        """
+        mem.release_invalid = True
+        mem.release_frame = None
+        mem.release_ts = None
+        mem.release_object_gap_ticks = 0
+        mem.live_ground_ticks = 0
+        mem.ground_frame = None
+        mem.ground_ts = None
+        mem.ground_bag_centroid = None
+        mem.stationary_frames = 0
+        mem.departed_frames = 0
+        mem.departure_baseline = 0.0
+        mem.release_person_centroid = None
+        mem.release_person_height = 0.0
+        mem.release_bag_centroid = None
+        mem.max_departure_ratio = 0.0
+        mem.aidm_separated = False
+        mem.post_release_settle_streak = 0
+        mem.regrab_lift_streak = 0
+        if mem.state in (EventState.BAG_RELEASED, EventState.BAG_ON_GROUND):
+            mem.state = EventState.BAG_CARRIED
+
     def _advance_pair(
         self,
         mem: _PairMemory,
@@ -2032,6 +2212,20 @@ class LitteringEventDetector:
         mem.confidence_sum += info.bag_confidence
         mem.confidence_count += 1
         mem.max_confidence = max(mem.max_confidence, info.bag_confidence)
+
+        # Job-57: track the bound object's last LIVE sighting every advanced
+        # tick. This is the continuity anchor: gap accounting and bbox-jump
+        # checks measure against it. Reset the invalid flag when the SAME
+        # object rebinds live before the budget expires (track blink survived).
+        mem.last_object_track_id = int(info.bag_id)
+        # RCM-05/RC-9: a live sighting clears the post-release gap counter —
+        # it always measures ticks since the LAST live observation, never a
+        # cumulative or history-gated count.
+        mem.release_object_gap_ticks = 0
+        if info.bag_centroid is not None:
+            mem.last_object_centroid = info.bag_centroid
+        if info.person_height > 1.0:
+            mem.last_person_height = float(info.person_height)
 
         if info.fallback:
             mem.fallback_frames += 1
@@ -2161,6 +2355,10 @@ class LitteringEventDetector:
                 and not info.in_bin_zone
             ):
                 mem.ground_evidence_frames += 1
+                if live_ground:
+                    # Job-57: LIVE ground proof (object seen this tick on the
+                    # ground plane) — the only kind that anchors continuity.
+                    mem.live_ground_ticks += 1
             # Physical separation: clothing/hip color latches stay high-
             # containment forever; a real discard leaves the person box.
             mem.max_post_release_norm_distance = max(
@@ -2250,6 +2448,9 @@ class LitteringEventDetector:
                 mem.state = EventState.BAG_RELEASED
                 mem.release_frame = frame_index
                 mem.release_ts = timestamp
+                mem.release_via_aidm_only = bool(
+                    aidm_sep and not (geo_release and aidm_ok)
+                )
                 mem.departure_baseline = max(1e-6, info.norm_distance)
                 mem.release_person_centroid = info.person_centroid
                 mem.release_person_height = info.person_height
@@ -2326,10 +2527,14 @@ class LitteringEventDetector:
                     # Ground evidence: strict band, or a slightly looser
                     # perspective band (0.25·ph) used only at settle time so
                     # elevated bin rests (~0.5-0.7·ph) stay BIN_DISPOSAL.
+                    # AIDM-only releases must NOT use the loose band — dumpster
+                    # mouths / bin lips often sit in that 0.25·ph window and
+                    # would confirm IMG_5305 as ground litter.
                     loose_ground = False
                     if (
                         info.bag_centroid is not None
                         and info.person_height > 1.0
+                        and not mem.aidm_separated
                     ):
                         feet_y = (
                             info.person_centroid[1] + 0.5 * info.person_height
@@ -2340,10 +2545,12 @@ class LitteringEventDetector:
                     if not info.in_bin_zone and (
                         info.near_ground_plane
                         or info.bag_below_feet
-                        or loose_ground
-                        or self._release_pose_on_ground(mem)
                     ):
                         mem.ground_evidence_frames += 1
+                        # Live sightings only — the loose band here is part of
+                        # the synthetic settle path (frozen-pose credit is NOT
+                        # continuity proof).
+                        mem.live_ground_ticks += 1
 
         if mem.state == EventState.BAG_ON_GROUND:
             if smooth_regrab:
@@ -2729,7 +2936,42 @@ class LitteringEventDetector:
             and d_now is not None
             and float(d_now) >= sep
         )
+        # Hysteresis latch OR current separation. Left-behind is enforced by
+        # confirmation gates (ground / bin), not here — requiring it blocked
+        # IMG_5290 clothing remaps that still motion-sync after the dump.
+        # Job-57: the latch must be temporally fresh. A separation latched many
+        # ticks ago while the object then vanished must not conjure a release
+        # when a DIFFERENT blob rebinds: separation only counts toward a
+        # release decision if it was (re)observed within the continuity
+        # budget, i.e. the pair has not lost its bound object for longer than
+        # max_track_gap_frames. True greedy carry→grip→release arcs re-latch
+        # every tick, so legitimate dumps are unaffected.
+        # Return False when the latch is stale: a separation latched many ticks
+        # ago must not conjure a release when the bound object has been gone
+        # for longer than max_track_gap_frames. True greedy carry→grip→release
+        # arcs advance every tick (missing_frames == 0), so they never trip.
+        if self._separation_stale(mem):
+            return False
         return bool(separated_now or mem.aidm_separated)
+
+    def _separation_stale(self, mem: _PairMemory) -> bool:
+        """True when latched separation evidence has outlived object continuity.
+
+        Freshness rule: separation is trustworthy only if the bound object
+        was seen live within the last ``max_track_gap_frames`` ticks. A latch
+        older than that, with the object gone since, is a Job-57 stale latch.
+        Attach evidence that never existed (no grip) also counts as stale.
+
+        ``mem.missing_frames`` is 0 on advanced ticks (the object is present
+        this tick) and > 0 on missing ticks; the gap counter is measured from
+        it so the rule works in both live and unit contexts.
+        """
+        cfg = self.config
+        if not (mem.ever_aidm_attached or mem.ever_wrist_near):
+            return True
+        if mem.bag_seen_frames <= 0:
+            return True
+        return bool(int(getattr(mem, "missing_frames", 0)) > int(cfg.max_track_gap_frames))
 
     def _compute_evidence(self, mem: _PairMemory) -> EventEvidence:
         cfg = self.config
@@ -2791,10 +3033,83 @@ class LitteringEventDetector:
             confidence=round(confidence, 4),
         )
 
+    # ------------------------------------------------------------------ #
+    # Threshold derivation
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def _separation_floor(cfg: "EventDetectorConfig", hard_min: float) -> float:
+        """Minimum normalized (person-height) separation that proves a discard.
+
+        Centralized on purpose. Every confirmation path that needs a release
+        separation floor goes through this function, so a floor can never be
+        an undefined local again (regression: the ``sep_floor`` NameError
+        class, IMG_5291 / job 43).
+        """
+        return max(float(cfg.release_distance_floor), float(hard_min))
+
+    def _release_ground_live_ok(self, mem: _PairMemory) -> bool:
+        """True when a release + live ground arc is established right now.
+
+        Job-57 recovery latch: carry → trustworthy release → ≥1 tick of
+        LIVE ground evidence → (present tick live). Once latched,
+        ``live_release_ground_ok`` stays True, so later tracker churn can no
+        longer retro-invalidate an arc that was already proven on live data.
+        """
+        if mem.release_frame is None:
+            return False
+        if mem.live_ground_ticks <= 0:
+            return False
+        if mem.release_invalid:
+            return False
+        return True
+
+    def _separation_gate(
+        self, mem: _PairMemory
+    ) -> Tuple[float, int, bool]:
+        """Derive the physical-separation bundle for one pair.
+
+        Returns ``(sep_floor, sep_ticks_needed, physically_separated)``.
+
+        Ordering is the whole point: the floor is computed FIRST and every
+        later expression that reads it comes after. The production crash
+        ``NameError: name 'sep_floor' is not defined`` was exactly this
+        derivation being written inline with the floor assigned below its
+        first use; CPython silently compiles that (LOAD_FAST) and raises only
+        on the one data path that evaluates the guarded expression, which is
+        why the same video ran clean twice before failing at frame 870.
+        """
+        cfg = self.config
+        # FLOOR first — nothing below may read a separation floor that has
+        # not been assigned yet.
+        sep_floor = self._separation_floor(cfg, 0.08)
+        sep_ticks_needed = max(2, int(cfg.feet_release_frames))
+        if (
+            mem.ground_evidence_frames > 0
+            and mem.max_post_release_norm_distance >= max(sep_floor, 0.25)
+        ):
+            sep_ticks_needed = 1
+        physically_separated = bool(
+            mem.max_post_release_norm_distance >= sep_floor
+            and mem.separated_frames >= sep_ticks_needed
+        )
+        # Job-57 recovery latch: once an arc is proven on live ground evidence
+        # it stays trusted — later churn must not retro-invalidate it.
+        if physically_separated and self._release_ground_live_ok(mem):
+            mem.live_release_ground_ok = True
+        return sep_floor, sep_ticks_needed, physically_separated
+
     def _rejection_reason(self, mem: _PairMemory, evidence: EventEvidence) -> Optional[str]:
         cfg = self.config
         if mem.bag_seen_frames == 0:
             return RejectionReason.BAG_NOT_DETECTED.value
+        # Job-57 class: uncertainty is not confirmable. When the release arc
+        # was invalidated (object continuity broke before the arc was
+        # established on live evidence), the event must stay a candidate
+        # instead of becoming an irreversible VIOLATION. This is reported as
+        # NO_RELEASE_TRANSITION because, semantically, no TRUSTWORTHY release
+        # exists anymore — and a fresh release may still be established below.
+        if mem.release_invalid and not mem.live_release_ground_ok:
+            return RejectionReason.NO_RELEASE_TRANSITION.value
         # P2-1 wiring (design principle #4: never let CSRT/color coasting
         # confirm a violation): a pair whose object has been tracked ONLY by
         # the fallback tracker for more than max_fallback_tracker_gap_frames
@@ -2812,7 +3127,7 @@ class LitteringEventDetector:
         min_carry_for_confirm = max(2, int(cfg.min_carried_frames) - 2)
         if mem.ever_aidm_attached:
             min_carry_for_confirm = max(2, int(cfg.min_carried_frames) - 1)
-        sep_floor_early = max(cfg.release_distance_floor, 0.08)
+        sep_floor_early = self._separation_floor(cfg, 0.08)
         fast_drop_ok = (
             mem.carried_frames >= min_carry_for_confirm
             and mem.release_frame is not None
@@ -2831,17 +3146,29 @@ class LitteringEventDetector:
                 return RejectionReason.NOT_ENOUGH_CARRIED_FRAMES.value
         if mem.release_frame is None:
             return RejectionReason.NO_RELEASE_TRANSITION.value
-        if mem.stationary_frames < cfg.min_stationary_frames:
-            # If the object never became stationary on the ground, littering is
-            # not established; the person must at least have left the area.
-            # Abandonment (grounded + un-reclaimed) is the departure-equivalent,
-            # so it must not be reported as "person did not depart".
-            if mem.abandonment_frames >= cfg.min_abandonment_frames:
-                pass  # fall through to the confidence gate
-            elif mem.departure_frame is None or mem.max_departure_ratio < 1.0:
-                return RejectionReason.PERSON_DID_NOT_DEPART.value
-            else:
-                return RejectionReason.BAG_NOT_STATIONARY.value
+        # RCM-03 (forensic corrective plan): GROUND CONTACT != ABANDONMENT.
+        # This used to short-circuit the whole abandonment/departure check
+        # whenever ``stationary_frames`` alone reached the threshold — i.e.
+        # a bag simply resting long enough was treated as equivalent to
+        # abandonment, with NO requirement that the person ever actually
+        # departed or that the abandonment window (non-recovery) ever
+        # elapsed. That let a recovery attempt already in progress at
+        # finalize() (regrab building, not yet completed) fall straight
+        # through to a confident violation. Confirmation now ALWAYS
+        # requires one of the two real departure-equivalent proofs:
+        #   * abandonment_frames reached the non-recovery window, or
+        #   * the actor genuinely departed (departure_frame set, ratio>=1).
+        # A stationary-but-not-yet-abandoned/departed candidate is not a
+        # confident violation; the recovery/regrab path decides its fate
+        # instead of a stationarity timer alone.
+        abandonment_established = mem.abandonment_frames >= cfg.min_abandonment_frames
+        departure_established = (
+            mem.departure_frame is not None and mem.max_departure_ratio >= 1.0
+        )
+        if not (abandonment_established or departure_established):
+            return RejectionReason.PERSON_DID_NOT_DEPART.value
+        if mem.stationary_frames < cfg.min_stationary_frames and not abandonment_established:
+            return RejectionReason.BAG_NOT_STATIONARY.value
         # Ground + stationary reached: abandonment (bag left behind, not
         # reclaimed) is a valid violation even without the person walking far.
         if mem.other_person_closer_frames > cfg.max_other_person_closer_frames:
@@ -2858,57 +3185,70 @@ class LitteringEventDetector:
         ):
             return RejectionReason.BIN_ZONE_DEPOSIT.value
         if cfg.require_ground_confirmation and mem.ground_evidence_frames <= 0:
-            # IMG_5290: AIDM separation can fire while the live box is still a
-            # mid-body clothing latch, so no live ground ticks accrue. Allow
-            # only when the FROZEN release pose sits in the lower body band
-            # (toward the feet / street) and no operator bin-zone fired.
-            # Elevated dumpster mouths (IMG_5305) sit mid-torso and stay blocked.
-            release_toward_feet = False
-            if (
-                mem.release_bag_centroid is not None
-                and mem.release_person_centroid is not None
-                and mem.release_person_height > 1.0
-            ):
-                release_toward_feet = float(mem.release_bag_centroid[1]) >= (
-                    float(mem.release_person_centroid[1])
-                    + 0.10 * float(mem.release_person_height)
-                )
-            aidm_dump_without_live_ground = (
+            # Short AIDM dump + clothing/tracker remap never accrues LIVE
+            # ground evidence (the true object vanished from tracking right
+            # after the drop). Credit synthetic ground only when we have an
+            # independent reason to believe the release itself happened near
+            # the actor's ground plane — the frozen release pose position.
+            #
+            # RCM-02 (forensic corrective plan): this used to require ONLY
+            # AIDM separation + a short carry, with no check on WHERE the
+            # object was released. That let an object released well ABOVE
+            # the ground plane (bin-height / ledge) manufacture ground
+            # evidence purely from wrist separation, converting an ambiguous
+            # (possible container) rest into a false ground-litter
+            # confirmation. Requiring ``_release_pose_on_ground`` keeps the
+            # street-drop recall path (release pose genuinely low) while
+            # closing the bin-height/container false-positive class.
+            short_aidm = mem.carried_frames <= max(
+                6, int(cfg.min_carried_frames) + 2
+            )
+            aidm_release_signal = bool(
                 mem.aidm_separated
                 and (mem.ever_aidm_attached or mem.ever_wrist_near)
                 and mem.bin_zone_frames == 0
-                and release_toward_feet
-                and (
-                    mem.ever_person_moved_while_carried
-                    or mem.max_post_release_norm_distance
-                    >= max(cfg.release_distance_floor, 0.08)
-                    or mem.separated_frames >= 1
-                )
             )
-            if aidm_dump_without_live_ground:
+            if (
+                aidm_release_signal
+                and short_aidm
+                and self._release_pose_on_ground(mem)
+            ):
                 mem.ground_evidence_frames = max(mem.ground_evidence_frames, 1)
+                mem.aidm_synthetic_ground = True
             elif mem.bin_zone_frames > 0:
                 return RejectionReason.BIN_ZONE_DEPOSIT.value
+            elif aidm_release_signal:
+                # We have real evidence the hand actually separated from the
+                # object (AIDM wrist release), but its resting position was
+                # never plausibly on the actor's ground plane. This is a
+                # genuinely AMBIGUOUS location (possible container deposit,
+                # ledge, or unresolved perspective) — a stronger, more
+                # specific signal than "no release evidence at all", so it
+                # gets NO_CONFIDENT_EVENT rather than the generic
+                # BIN_DISPOSAL bucket (RCM-02).
+                return RejectionReason.NO_CONFIDENT_EVENT.value
             else:
                 return RejectionReason.BIN_DISPOSAL.value
-        # Physical separation gate: an object that was contained in the person
-        # box (clothing / hip latch) but never left the body after "release"
-        # is not ground littering. Also reject static color/clutter blobs that
-        # never moved while the person walked away (inflated norm_distance).
-        sep_floor = max(cfg.release_distance_floor, 0.08)
+        # Do NOT reject AIDM-first releases that later accrue live ground-plane
+        # evidence: pose put-downs almost always latch AIDM one tick before
+        # geometry, then rest on the street (unit positives / M.MOV). Bin-lip
+        # FP (IMG_5305) is blocked by refusing loose_ground for aidm_separated
+        # and by the no-live-ground branch above.
         # Strong geometric separation after a grounded release only needs one
         # clear separated tick (IMG_5306 had sep≈0.45 with sep_fr=1 and was
         # rejected as NO_PHYSICAL_SEPARATION despite GROUND_CONFIRMED).
-        sep_ticks_needed = max(2, int(cfg.feet_release_frames))
-        if (
-            mem.ground_evidence_frames > 0
-            and mem.max_post_release_norm_distance >= max(sep_floor, 0.25)
-        ):
-            sep_ticks_needed = 1
-        physically_separated = (
-            mem.max_post_release_norm_distance >= sep_floor
-            and mem.separated_frames >= sep_ticks_needed
-        )
+        #
+        # All separation thresholds are derived by _separation_gate(), which
+        # computes the FLOOR before any value that reads it. This is a
+        # structural guard against the ``sep_floor`` NameError class
+        # (IMG_5291 / job 43): a refactor once moved the floor assignment
+        # below its first use inside this method. CPython compiles a local
+        # that as LOAD_FAST and raises only at runtime, on the single data
+        # path that evaluates the guarded ``and`` (ground_evidence_frames>0)
+        # — so the bug survived two other runs of the same video and only
+        # surfaced at frame 870. A helper makes "defined before used" a
+        # property of the code, not a discipline of the editor.
+        sep_floor, sep_ticks_needed, physically_separated = self._separation_gate(mem)
         bag_actually_moved = mem.max_bag_displacement_px >= (
             max(0.12, cfg.bag_move_norm * 2.0) * max(mem.release_person_height, 80.0)
         )
@@ -2961,8 +3301,16 @@ class LitteringEventDetector:
             return False
         if mem.reclaimed:
             return False
+        # RCM-03 (forensic corrective plan): never manufacture end-of-stream
+        # guilt while a recovery/regrab attempt is actively building
+        # (regrab_lift_streak > 0). The clip cutting off mid-reclaim is
+        # exactly the "insufficient evidence" case — the correct outcome is
+        # no accusation, not converting an unresolved recovery attempt into
+        # a violation just because it never had time to finish latching.
+        if mem.regrab_lift_streak > 0:
+            return False
         cfg = self.config
-        sep_floor = max(cfg.release_distance_floor, 0.12)
+        sep_floor = self._separation_floor(cfg, 0.12)
         walked_away = (
             mem.max_departure_ratio >= 0.45
             or mem.departed_frames >= 1
@@ -3101,6 +3449,12 @@ class LitteringEventDetector:
                 "ever_aidm_attached": bool(mem.ever_aidm_attached),
                 "max_wrist_d_norm": round(mem.max_wrist_d_norm, 4),
                 "aidm_separated": bool(mem.aidm_separated),
+                "aidm_synthetic_ground": bool(
+                    getattr(mem, "aidm_synthetic_ground", False)
+                ),
+                "release_via_aidm_only": bool(
+                    getattr(mem, "release_via_aidm_only", False)
+                ),
                 "aidm_wrist_separate_ratio": float(
                     self.config.aidm_wrist_separate_ratio
                 ),

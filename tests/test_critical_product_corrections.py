@@ -63,6 +63,11 @@ def test_bin_vs_ground_distinction_no_ground_contact():
     mem.carried_frames = 10
     mem.release_frame = 50
     mem.stationary_frames = 10
+    # RCM-03: ground contact alone (stationary_frames) is not abandonment.
+    # A grounded, unreclaimed object naturally accumulates abandonment_frames
+    # in lockstep once it is resting on the ground — set it here so this
+    # hand-built memory represents a state the FSM could actually reach.
+    mem.abandonment_frames = cfg.min_abandonment_frames
     mem.ground_evidence_frames = 0
     mem.bin_zone_frames = 0
     mem.confidence_sum = 18.0
@@ -151,6 +156,7 @@ def test_no_physical_separation_rejects_clothing_latch():
     mem.carried_frames = 10
     mem.release_frame = 4025
     mem.stationary_frames = 10
+    mem.abandonment_frames = cfg.min_abandonment_frames
     mem.ground_evidence_frames = 5
     mem.bin_zone_frames = 0
     mem.ever_contained = True
@@ -186,6 +192,7 @@ def test_physical_separation_allows_ground_litter_confirm():
     mem.carried_frames = 8
     mem.release_frame = 6420
     mem.stationary_frames = 10
+    mem.abandonment_frames = cfg.min_abandonment_frames
     mem.ground_evidence_frames = 6
     mem.bin_zone_frames = 0
     mem.ever_contained = True
@@ -224,6 +231,7 @@ def test_fast_drop_confirm_with_separation_below_full_carry_count():
     mem.carried_frames = 4  # max(2, 6-2) = 4 fast-drop floor
     mem.release_frame = 100
     mem.stationary_frames = 10
+    mem.abandonment_frames = cfg.min_abandonment_frames
     mem.ground_evidence_frames = 5
     mem.ever_contained = True
     mem.max_post_release_norm_distance = 0.40
