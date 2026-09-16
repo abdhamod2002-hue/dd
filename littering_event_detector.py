@@ -3185,48 +3185,36 @@ class LitteringEventDetector:
         ):
             return RejectionReason.BIN_ZONE_DEPOSIT.value
         if cfg.require_ground_confirmation and mem.ground_evidence_frames <= 0:
-            # Short AIDM dump + clothing/tracker remap never accrues LIVE
-            # ground evidence (the true object vanished from tracking right
-            # after the drop). Credit synthetic ground only when we have an
-            # independent reason to believe the release itself happened near
-            # the actor's ground plane — the frozen release pose position.
+            # IMG_5290: short AIDM dump + clothing remap never accrues live
+            # ground. Credit synthetic ground only for short carries. Longer
+            # AIDM arcs with no live ground are dumpster-adjacent (IMG_5305).
             #
-            # RCM-02 (forensic corrective plan): this used to require ONLY
-            # AIDM separation + a short carry, with no check on WHERE the
-            # object was released. That let an object released well ABOVE
-            # the ground plane (bin-height / ledge) manufacture ground
-            # evidence purely from wrist separation, converting an ambiguous
-            # (possible container) rest into a false ground-litter
-            # confirmation. Requiring ``_release_pose_on_ground`` keeps the
-            # street-drop recall path (release pose genuinely low) while
-            # closing the bin-height/container false-positive class.
+            # RCM-02 (forensic corrective plan) ATTEMPTED FIX, REVERTED:
+            # requiring ``_release_pose_on_ground`` here (independent proof
+            # the release itself happened near the ground) correctly blocked
+            # the synthetic bin-height false positive in a unit test, but
+            # broke a REAL frozen-set true positive (IMG_5117) -- on real
+            # footage the frozen release-pose geometry does not reliably
+            # line up with this margin even for genuine street-level
+            # put-downs. Per the forensic corrective plan's own risk rating
+            # for RCM-02 (▲ high regression risk), this was reverted rather
+            # than patched further once the regression was measured against
+            # real video. RCM-02 (bin-height objects manufacturing ground
+            # evidence from AIDM separation alone) is an OPEN P1 item that
+            # needs real-video-instrumented redesign, not a blind gate here.
             short_aidm = mem.carried_frames <= max(
                 6, int(cfg.min_carried_frames) + 2
             )
-            aidm_release_signal = bool(
+            if (
                 mem.aidm_separated
                 and (mem.ever_aidm_attached or mem.ever_wrist_near)
                 and mem.bin_zone_frames == 0
-            )
-            if (
-                aidm_release_signal
                 and short_aidm
-                and self._release_pose_on_ground(mem)
             ):
                 mem.ground_evidence_frames = max(mem.ground_evidence_frames, 1)
                 mem.aidm_synthetic_ground = True
             elif mem.bin_zone_frames > 0:
                 return RejectionReason.BIN_ZONE_DEPOSIT.value
-            elif aidm_release_signal:
-                # We have real evidence the hand actually separated from the
-                # object (AIDM wrist release), but its resting position was
-                # never plausibly on the actor's ground plane. This is a
-                # genuinely AMBIGUOUS location (possible container deposit,
-                # ledge, or unresolved perspective) — a stronger, more
-                # specific signal than "no release evidence at all", so it
-                # gets NO_CONFIDENT_EVENT rather than the generic
-                # BIN_DISPOSAL bucket (RCM-02).
-                return RejectionReason.NO_CONFIDENT_EVENT.value
             else:
                 return RejectionReason.BIN_DISPOSAL.value
         # Do NOT reject AIDM-first releases that later accrue live ground-plane
