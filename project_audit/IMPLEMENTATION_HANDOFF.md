@@ -153,16 +153,17 @@ possibly `A`) were investigated, not ignored:
   `frozen_eval_20260915T112844Z` vs `frozen_eval_20260915T123621Z`, both
   already in the repo before this session). Pre-existing non-determinism,
   not investigated further here — H2 in the audit is the open question.
-- **`A`** ("late_entry_litter"): a baseline check was launched but not
-  confirmed complete before this handoff was written — **see the note at
-  the end of this document / check `evaluation/reports/` for the latest
-  timestamp after this file's `frozen_eval_20260916T*` entries** for the
-  result. If it also fails at the true baseline, it's the same pre-existing
-  class as the two above and needs no further action here. If it does NOT
-  fail at baseline, it is a genuine regression from one of the 5 landed
-  fixes and must be bisected the same way §2 was (revert one commit's file
-  content at a time — `eab2afd`, `85a22d5`, `827f9e9` — and re-run
-  `evaluation/run_frozen_eval.py --ids A` after each).
+- **`A`** ("late_entry_litter"): confirmed via the same bisection method —
+  fails identically at the literal pre-session baseline with every one of
+  this session's code changes reverted (`frozen_eval_20260916T162335Z.json`).
+  Pre-existing, not a regression from this work. No further action needed.
+
+**All 3 remaining misses are now confirmed pre-existing, not regressions
+introduced by this session's 5 landed fixes.** The 5 fixes were each
+individually bisected clean against `IMG_5119` (the hardest of the three to
+rule out) and the aggregate numbers above were produced with all 5 active
+simultaneously, so there is no remaining open question about whether this
+session's P0 work regressed real-video recall.
 
 **Net effect of this session on measured precision:** `IMG_5306`'s
 9-confirmations-for-1-incident duplication and the general static-container
