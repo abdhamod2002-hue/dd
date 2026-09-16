@@ -816,6 +816,18 @@ class _PairMemory:
     # AIDM: wrist was within attach_ratio of the bag during carry (grip evidence).
     ever_aidm_attached: bool = False
     max_wrist_d_norm: float = 0.0
+    # General fix (dark-clothing/body false-positive class): the LIFETIME max
+    # above accumulates from the moment the pair is first created, including
+    # ticks BEFORE any grip was ever established — e.g. ordinary arm-swing
+    # motion while a person walks near a mistakenly-tracked "object" that is
+    # actually part of their own body. Using that lifetime max as evidence of
+    # "the hand separated from the object" (the missing-bag AIDM-release
+    # branch does exactly this) lets a value with nothing to do with any real
+    # grip manufacture a false release the instant a grip is later
+    # (mis)established. This tracks the max ONLY from the tick where
+    # ``ever_aidm_attached`` first becomes true onward, so it can only ever
+    # reflect wrist motion that happened during or after an actual grip.
+    max_wrist_d_norm_since_attach: float = 0.0
     # AIDM dual-threshold hysteresis (attach ↔ separate). Once d_norm crosses
     # separate after a grip, stay "separated" until d_norm returns to attach
     # (true re-grip). Fixes IMG_5290 where peak d_norm≈0.21 is only visible for
@@ -1490,7 +1502,14 @@ class LitteringEventDetector:
                 and mem.missing_frames >= max(2, int(cfg.feet_release_frames))
                 and (
                     (mem.aidm_separated and not stale_latch)
-                    or mem.max_wrist_d_norm
+                    # General fix: this MUST be the max recorded SINCE the
+                    # grip was established, never the pair's lifetime max
+                    # (which can include ordinary pre-grip arm motion that
+                    # has nothing to do with any release — see the field's
+                    # docstring). Using the lifetime max here let a stale,
+                    # pre-grip peak manufacture a release the instant a grip
+                    # was later (mis)established on an unrelated body part.
+                    or mem.max_wrist_d_norm_since_attach
                     >= float(cfg.aidm_wrist_separate_ratio)
                     or mem.ever_person_moved_while_carried
                 )
@@ -2108,6 +2127,7 @@ class LitteringEventDetector:
         mem.release_bag_centroid = None
         mem.max_departure_ratio = 0.0
         mem.aidm_separated = False
+        mem.max_wrist_d_norm_since_attach = 0.0
         mem.post_release_settle_streak = 0
         mem.regrab_lift_streak = 0
         if mem.state in (EventState.BAG_RELEASED, EventState.BAG_ON_GROUND):
@@ -2145,6 +2165,13 @@ class LitteringEventDetector:
             # dump (IMG_5290). Separation clears only on smooth_regrab.
         if info.wrist_d_norm is not None:
             mem.max_wrist_d_norm = max(mem.max_wrist_d_norm, float(info.wrist_d_norm))
+            # Only accumulate the "since attach" max once a grip has
+            # actually been established — never from ticks before any grip
+            # existed (see the field's docstring for why this matters).
+            if mem.ever_aidm_attached:
+                mem.max_wrist_d_norm_since_attach = max(
+                    mem.max_wrist_d_norm_since_attach, float(info.wrist_d_norm)
+                )
             if (
                 info.wrist_keypoints_available
                 and mem.ever_aidm_attached
@@ -2489,6 +2516,7 @@ class LitteringEventDetector:
                 # Reclaim is a new grip arc — do not keep a prior throw's
                 # separation latch (would instant-release the regrab).
                 mem.aidm_separated = False
+                mem.max_wrist_d_norm_since_attach = 0.0
             elif mem.release_frame == frame_index:
                 # Same-tick fall-through after BAG_CARRIED→RELEASED: seed settle
                 # but do not complete BAG_ON_GROUND (protects regrab window).
@@ -3436,6 +3464,9 @@ class LitteringEventDetector:
                 "end_of_stream_walkaway": bool(mem.end_of_stream_walkaway),
                 "ever_aidm_attached": bool(mem.ever_aidm_attached),
                 "max_wrist_d_norm": round(mem.max_wrist_d_norm, 4),
+                "max_wrist_d_norm_since_attach": round(
+                    mem.max_wrist_d_norm_since_attach, 4
+                ),
                 "aidm_separated": bool(mem.aidm_separated),
                 "aidm_synthetic_ground": bool(
                     getattr(mem, "aidm_synthetic_ground", False)

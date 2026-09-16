@@ -234,3 +234,90 @@ def test_missing_bag_after_aidm_carry_releases():
         f"expected release after missing bag; events="
         f"{[(e.confirmed, e.reason, e.frames) for e in (events + det.rejected_events)[:6]]}"
     )
+
+
+def _cfg_missing_bag():
+    return EventDetectorConfig(
+        min_carried_frames=3,
+        min_stationary_frames=3,
+        min_abandonment_frames=3,
+        feet_release_frames=2,
+        smoothing_window=2,
+        max_pair_age_frames=30,
+        aidm_release_gate_enabled=True,
+        aidm_wrist_attach_ratio=0.15,
+        aidm_wrist_separate_ratio=0.20,
+        require_ground_confirmation=False,
+        require_carry_origin_link=False,
+    )
+
+
+def test_stale_pre_grip_wrist_swing_never_manufactures_missing_bag_release():
+    """General fix (dark-clothing/body false-positive class): a large
+    wrist-to-object distance recorded BEFORE any grip ever existed (e.g.
+    ordinary arm-swing motion near a mistakenly-tracked "object" that is
+    actually part of the person's own body) must never be read as evidence
+    that a real grip separated, once the object later disappears from
+    tracking. Real production footage showed exactly this: a body-attached
+    false detection accumulated a large lifetime wrist-distance peak from
+    ordinary gait motion BEFORE it was ever "gripped", then that stale peak
+    alone (with the wrist never actually separating from the object AFTER
+    the grip) manufactured a release the instant a spurious grip was
+    (mis)established and the object went missing.
+    """
+    cfg = _cfg_missing_bag()
+    det = LitteringEventDetector(cfg)
+    t = 0.0
+    bag_pos = (140.0, 200.0)
+    # Phase A: wrist FAR from the object, no grip yet — this is ordinary
+    # unrelated motion (e.g. an arm swinging during a walking gait) that
+    # happens to be measured against this object's position. carried must
+    # stay False here (pose available + wrist not near suppresses zone_carry).
+    for _ in range(6):
+        p = _person(1, 140, 180, height=200.0, wrists=((140.0, 50.0), (150.0, 45.0)))
+        det.update([p], [_bag(10001, *bag_pos)], t)
+        t += 0.1
+    mem = next(iter(det._pairs.values()))
+    assert mem.state != EventState.BAG_CARRIED, (
+        "wrist far from the object must not read as carried"
+    )
+    assert mem.max_wrist_d_norm > cfg.aidm_wrist_separate_ratio, (
+        "the pre-grip lifetime max must be large (this is the stale value "
+        "the bug used)"
+    )
+    assert mem.max_wrist_d_norm_since_attach == 0.0, (
+        "nothing should accumulate into the since-attach max before any "
+        "grip exists"
+    )
+
+    # Phase B: the wrist reaches the object exactly — a grip is established.
+    # It never moves away again while the object is still tracked.
+    for _ in range(6):
+        p = _person(1, 140, 180, height=200.0, wrists=(bag_pos, (150.0, 195.0)))
+        det.update([p], [_bag(10001, *bag_pos)], t)
+        t += 0.1
+    mem = next(iter(det._pairs.values()))
+    assert mem.ever_aidm_attached, "the wrist-at-object tick must register a grip"
+    assert mem.aidm_separated is False, (
+        "the wrist never separated after the grip — no real release evidence"
+    )
+    assert mem.max_wrist_d_norm_since_attach < cfg.aidm_wrist_separate_ratio, (
+        "since the wrist stayed at the object after the grip, the "
+        "since-attach max must remain small"
+    )
+
+    # Phase C: the object disappears from tracking. The person does not
+    # move (isolates this test from the unrelated ever_person_moved_while_
+    # carried disjunct in the same branch).
+    for _ in range(10):
+        p = _person(1, 140, 180, height=200.0, wrists=(bag_pos, (150.0, 195.0)))
+        det.update([p], [], t)
+        t += 0.1
+
+    mem = next(iter(det._pairs.values()), None)
+    still_only_carried = mem is not None and mem.release_frame is None
+    assert still_only_carried, (
+        "a stale pre-grip wrist-swing peak must not manufacture a release "
+        "once the object goes missing, when the wrist never actually "
+        "separated from the object after the grip was established"
+    )
