@@ -547,6 +547,70 @@ def test_tracker_id_churn_keeps_single_stable_object_identity():
     assert confirmed[0].event_object_uid == stable_uid
 
 
+def test_static_container_with_id_churn_never_confirms():
+    """RCM-01 (forensic corrective plan): a large STATIC object (a container)
+    detected as a semantic waste class, whose raw tracker id churns every
+    tick exactly like the real detector does, must NEVER be attributed as
+    carried-then-abandoned just because a person walks past it. This is the
+    general form of the M.MOV/IMG_5613 failure class: a static container
+    inheriting carry-then-litter status from a passer-by, caused by motion
+    history that reset every id churn and therefore never proved the object
+    was actually stationary. No video-specific data is used here — this is
+    a synthetic id-churn walk-past, not a recorded clip.
+    """
+    cfg = EventDetectorConfig(
+        analysis_fps=10.0,
+        min_carried_frames=3,
+        min_stationary_frames=4,
+        min_departed_frames=2,
+        confirmation_grace_frames=2,
+        smoothing_window=3,
+        stationary_window_frames=3,
+        max_pair_age_frames=40,
+        min_event_confidence=0.5,
+        min_abandonment_frames=6,
+    )
+    detector = LitteringEventDetector(cfg)
+    events = []
+    t = 0.0
+    raw_id_cycle = [9001, 9002, 9003, 9004]
+    for f in range(40):
+        # Person has NO pose keypoints (forces the no-pose carry-origin
+        # fallback path, which is the one that used to accept motion
+        # CORRELATION as carry evidence).
+        px = 50.0 + f * 22.0
+        person = DetectorPerson(
+            track_id=1, bbox=(px - 40.0, 220.0, px + 40.0, 380.0), confidence=0.9
+        )
+        # Static container: fixed real-world position, but its RAW track id
+        # churns every tick — exactly what a tracker does on the SAME
+        # physical object across re-detections.
+        bag = DetectorBag(
+            track_id=raw_id_cycle[f % 4],
+            bbox=(465.0, 270.0, 535.0, 330.0),
+            confidence=0.85,
+            class_name="garbage_bag",
+            source="yolo",
+            yolo_confirmed=True,
+        )
+        events.extend(detector.update([person], [bag], t, frame_index=f))
+        t += 0.1
+    events.extend(detector.finalize())
+    confirmed = [e for e in events if e.confirmed]
+    assert confirmed == [], (
+        "a static container must never be confirmed as carried/abandoned "
+        "litter merely because a person walked past it, regardless of "
+        "tracker id churn on the container itself"
+    )
+    # The container must be recognised as ONE stable physical object across
+    # its own id churn (object-identity is working correctly here — the bug
+    # this test guards against is in the FSM's motion/carry reasoning, not
+    # in uid assignment).
+    assert set(detector.last_object_uid_map.values()) == {
+        next(iter(detector.last_object_uid_map.values()))
+    }
+
+
 def test_active_thresholds_disclosed_in_event_details():
     """P1-8: every event must disclose the EFFECTIVE runtime thresholds that
     produced it (details['active_thresholds']), so operators never have to
