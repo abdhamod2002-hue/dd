@@ -1,0 +1,158 @@
+{
+  "mode": "POSTFIX3",
+  "frames": 1140,
+  "elapsed": 254.63,
+  "summary": {
+    "total_candidates": 3,
+    "confirmed_violations": 0,
+    "rejected_candidates": 3,
+    "acceptance_rate": 0.0,
+    "rejection_reason_counts": {
+      "NOT_ENOUGH_CARRIED_FRAMES": 1,
+      "NO_RELEASE_TRANSITION": 2
+    },
+    "active_pairs": 0,
+    "adaptive": {
+      "tiers": 3,
+      "tier_summaries": [
+        {
+          "total_candidates": 3,
+          "confirmed_violations": 0,
+          "rejected_candidates": 3,
+          "acceptance_rate": 0.0,
+          "rejection_reason_counts": {
+            "NOT_ENOUGH_CARRIED_FRAMES": 1,
+            "NO_RELEASE_TRANSITION": 2
+          },
+          "active_pairs": 0
+        },
+        {
+          "total_candidates": 3,
+          "confirmed_violations": 0,
+          "rejected_candidates": 3,
+          "acceptance_rate": 0.0,
+          "rejection_reason_counts": {
+            "NO_RELEASE_TRANSITION": 3
+          },
+          "active_pairs": 0
+        },
+        {
+          "total_candidates": 7,
+          "confirmed_violations": 0,
+          "rejected_candidates": 7,
+          "acceptance_rate": 0.0,
+          "rejection_reason_counts": {
+            "NO_RELEASE_TRANSITION": 3,
+            "NOT_ENOUGH_CARRIED_FRAMES": 4
+          },
+          "active_pairs": 0
+        }
+      ],
+      "learned_overrides": {
+        "min_carried_frames": 4,
+        "release_distance_ratio": 0.22,
+        "release_distance_floor": 0.1
+      },
+      "videos_analyzed": 1
+    }
+  },
+  "confirmed": [],
+  "rejected": [
+    {
+      "reason": "NOT_ENOUGH_CARRIED_FRAMES",
+      "state": "BAG_NEAR_PERSON",
+      "frames": {
+        "carry_start": 793,
+        "release": null,
+        "ground": null,
+        "departure": null,
+        "confirmed": null
+      },
+      "bag_class": "black_waste_bag",
+      "evidence": {
+        "carry_score": 0.8333,
+        "release_score": 0.0,
+        "stationary_score": 0.0,
+        "departure_score": 0.0,
+        "association_score": 0.6592,
+        "detection_score": 1.0,
+        "confidence": 0.2468
+      },
+      "uids": [
+        1,
+        100003
+      ],
+      "details": {
+        "location_status": "LOCATION_AMBIGUOUS",
+        "ground_evidence_frames": 0,
+        "carried_frames": 5,
+        "stationary_frames": 0,
+        "abandonment_frames": null
+      }
+    },
+    {
+      "reason": "NO_RELEASE_TRANSITION",
+      "state": "BAG_CARRIED",
+      "frames": {
+        "carry_start": 769,
+        "release": null,
+        "ground": null,
+        "departure": null,
+        "confirmed": null
+      },
+      "bag_class": "yellow_waste_bag",
+      "evidence": {
+        "carry_score": 1.0,
+        "release_score": 0.0,
+        "stationary_score": 0.0,
+        "departure_score": 0.0,
+        "association_score": 0.8471,
+        "detection_score": 1.0,
+        "confidence": 0.3012
+      },
+      "uids": [
+        1,
+        100002
+      ],
+      "details": {
+        "location_status": "LOCATION_AMBIGUOUS",
+        "ground_evidence_frames": 0,
+        "carried_frames": 10,
+        "stationary_frames": 0,
+        "abandonment_frames": null
+      }
+    },
+    {
+      "reason": "NO_RELEASE_TRANSITION",
+      "state": "BAG_CARRIED",
+      "frames": {
+        "carry_start": 849,
+        "release": null,
+        "ground": null,
+        "departure": null,
+        "confirmed": null
+      },
+      "bag_class": "yellow_waste_bag",
+      "evidence": {
+        "carry_score": 1.0,
+        "release_score": 0.0,
+        "stationary_score": 0.0,
+        "departure_score": 0.0,
+        "association_score": 0.8352,
+        "detection_score": 1.0,
+        "confidence": 0.3002
+      },
+      "uids": [
+        1,
+        100005
+      ],
+      "details": {
+        "location_status": "LOCATION_AMBIGUOUS",
+        "ground_evidence_frames": 0,
+        "carried_frames": 10,
+        "stationary_frames": 0,
+        "abandonment_frames": null
+      }
+    }
+  ]
+}

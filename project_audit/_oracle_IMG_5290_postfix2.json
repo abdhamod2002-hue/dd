@@ -1,0 +1,944 @@
+{
+  "mode": "POSTFIX2_FULL_VIDEO",
+  "frames": 1140,
+  "elapsed": 250.02,
+  "summary": {
+    "total_candidates": 4,
+    "confirmed_violations": 0,
+    "rejected_candidates": 4,
+    "acceptance_rate": 0.0,
+    "rejection_reason_counts": {
+      "PERSON_DID_NOT_DEPART": 1,
+      "NOT_ENOUGH_CARRIED_FRAMES": 3
+    },
+    "active_pairs": 0,
+    "adaptive": {
+      "tiers": 3,
+      "tier_summaries": [
+        {
+          "total_candidates": 4,
+          "confirmed_violations": 0,
+          "rejected_candidates": 4,
+          "acceptance_rate": 0.0,
+          "rejection_reason_counts": {
+            "PERSON_DID_NOT_DEPART": 1,
+            "NOT_ENOUGH_CARRIED_FRAMES": 3
+          },
+          "active_pairs": 0
+        },
+        {
+          "total_candidates": 4,
+          "confirmed_violations": 0,
+          "rejected_candidates": 4,
+          "acceptance_rate": 0.0,
+          "rejection_reason_counts": {
+            "PICKED_BACK_UP": 1,
+            "NO_RELEASE_TRANSITION": 1,
+            "NOT_ENOUGH_CARRIED_FRAMES": 2
+          },
+          "active_pairs": 0
+        },
+        {
+          "total_candidates": 5,
+          "confirmed_violations": 0,
+          "rejected_candidates": 5,
+          "acceptance_rate": 0.0,
+          "rejection_reason_counts": {
+            "PERSON_DID_NOT_DEPART": 1,
+            "NO_RELEASE_TRANSITION": 3,
+            "NOT_ENOUGH_CARRIED_FRAMES": 1
+          },
+          "active_pairs": 0
+        }
+      ],
+      "learned_overrides": {
+        "departure_motion_ratio": 0.45,
+        "min_carried_frames": 4
+      },
+      "videos_analyzed": 1
+    }
+  },
+  "confirmed": [],
+  "rejected": [
+    {
+      "reason": "PERSON_DID_NOT_DEPART",
+      "state": "BAG_ON_GROUND",
+      "frames": {
+        "carry_start": 769,
+        "release": 881,
+        "ground": 905,
+        "departure": null,
+        "confirmed": null
+      },
+      "timestamps": {
+        "carry_start": 1789195786.5452256,
+        "release": 1789195788.4127111,
+        "ground": 1789195788.8128865,
+        "departure": null,
+        "confirmed": null
+      },
+      "evidence": {
+        "carry_score": 1.0,
+        "release_score": 1.0,
+        "stationary_score": 0.0,
+        "departure_score": 0.0,
+        "association_score": 0.7508,
+        "detection_score": 1.0,
+        "confidence": 0.4276
+      },
+      "bag_class": "black_waste_bag",
+      "uids": [
+        1,
+        100002
+      ]
+    },
+    {
+      "reason": "NOT_ENOUGH_CARRIED_FRAMES",
+      "state": "BAG_NEAR_PERSON",
+      "frames": {
+        "carry_start": 961,
+        "release": null,
+        "ground": null,
+        "departure": null,
+        "confirmed": null
+      },
+      "timestamps": {
+        "carry_start": 1789195789.7466292,
+        "release": null,
+        "ground": null,
+        "departure": null,
+        "confirmed": null
+      },
+      "evidence": {
+        "carry_score": 0.6667,
+        "release_score": 0.0,
+        "stationary_score": 0.0,
+        "departure_score": 0.0,
+        "association_score": 0.8295,
+        "detection_score": 1.0,
+        "confidence": 0.2247
+      },
+      "bag_class": "yellow_waste_bag",
+      "uids": [
+        1,
+        100003
+      ]
+    },
+    {
+      "reason": "NOT_ENOUGH_CARRIED_FRAMES",
+      "state": "BAG_NEAR_PERSON",
+      "frames": {
+        "carry_start": 985,
+        "release": null,
+        "ground": null,
+        "departure": null,
+        "confirmed": null
+      },
+      "timestamps": {
+        "carry_start": 1789195790.1468046,
+        "release": null,
+        "ground": null,
+        "departure": null,
+        "confirmed": null
+      },
+      "evidence": {
+        "carry_score": 0.5,
+        "release_score": 0.0,
+        "stationary_score": 0.0,
+        "departure_score": 0.0,
+        "association_score": 0.8297,
+        "detection_score": 1.0,
+        "confidence": 0.1872
+      },
+      "bag_class": "yellow_waste_bag",
+      "uids": [
+        1,
+        100006
+      ]
+    },
+    {
+      "reason": "NOT_ENOUGH_CARRIED_FRAMES",
+      "state": "BAG_NEAR_PERSON",
+      "frames": {
+        "carry_start": 1065,
+        "release": null,
+        "ground": null,
+        "departure": null,
+        "confirmed": null
+      },
+      "timestamps": {
+        "carry_start": 1789195791.4807227,
+        "release": null,
+        "ground": null,
+        "departure": null,
+        "confirmed": null
+      },
+      "evidence": {
+        "carry_score": 0.1667,
+        "release_score": 0.0,
+        "stationary_score": 0.0,
+        "departure_score": 0.0,
+        "association_score": 0.8949,
+        "detection_score": 1.0,
+        "confidence": 0.118
+      },
+      "bag_class": "red_waste_bag",
+      "uids": [
+        1,
+        100009
+      ]
+    }
+  ],
+  "samples": [
+    {
+      "t": 12.539,
+      "sem": [
+        [
+          "black_waste_bag",
+          0.69,
+          [
+            162.0,
+            916.0,
+            219.0,
+            956.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 12.672,
+      "sem": [
+        [
+          "black_waste_bag",
+          0.68,
+          [
+            163.0,
+            914.0,
+            223.0,
+            955.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 12.806,
+      "sem": [
+        [
+          "black_waste_bag",
+          0.65,
+          [
+            221.0,
+            888.0,
+            254.0,
+            975.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 12.939,
+      "sem": [
+        [
+          "yellow_waste_bag",
+          0.67,
+          [
+            215.0,
+            883.0,
+            256.0,
+            957.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 13.873,
+      "sem": [
+        [
+          "black_waste_bag",
+          0.7,
+          [
+            400.0,
+            900.0,
+            478.0,
+            973.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 14.006,
+      "sem": [
+        [
+          "yellow_waste_bag",
+          0.81,
+          [
+            482.0,
+            895.0,
+            571.0,
+            970.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 14.14,
+      "sem": [
+        [
+          "black_waste_bag",
+          0.75,
+          [
+            439.0,
+            926.0,
+            522.0,
+            975.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 14.273,
+      "sem": [
+        [
+          "black_waste_bag",
+          0.74,
+          [
+            443.0,
+            937.0,
+            506.0,
+            974.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 14.406,
+      "sem": [
+        [
+          "black_waste_bag",
+          0.26,
+          [
+            439.0,
+            926.0,
+            522.0,
+            975.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 14.54,
+      "sem": [
+        [
+          "black_waste_bag",
+          0.74,
+          [
+            448.0,
+            929.0,
+            517.0,
+            973.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 14.673,
+      "sem": [
+        [
+          "black_waste_bag",
+          0.41,
+          [
+            454.0,
+            933.0,
+            512.0,
+            972.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 14.806,
+      "sem": [
+        [
+          "black_waste_bag",
+          0.68,
+          [
+            442.0,
+            949.0,
+            489.0,
+            1003.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 14.94,
+      "sem": [
+        [
+          "yellow_waste_bag",
+          0.55,
+          [
+            429.0,
+            933.0,
+            469.0,
+            1019.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 15.073,
+      "sem": [
+        [
+          "yellow_waste_bag",
+          0.62,
+          [
+            440.0,
+            900.0,
+            474.0,
+            995.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 15.207,
+      "sem": [
+        [
+          "black_waste_bag",
+          0.82,
+          [
+            534.0,
+            883.0,
+            652.0,
+            926.0
+          ]
+        ],
+        [
+          "yellow_waste_bag",
+          0.63,
+          [
+            474.0,
+            864.0,
+            502.0,
+            954.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 15.34,
+      "sem": [
+        [
+          "black_waste_bag",
+          0.8,
+          [
+            550.0,
+            886.0,
+            651.0,
+            925.0
+          ]
+        ],
+        [
+          "black_waste_bag",
+          0.54,
+          [
+            558.0,
+            1129.0,
+            696.0,
+            1168.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 15.473,
+      "sem": [
+        [
+          "black_waste_bag",
+          0.8,
+          [
+            562.0,
+            887.0,
+            651.0,
+            925.0
+          ]
+        ],
+        [
+          "black_waste_bag",
+          0.46,
+          [
+            456.0,
+            1061.0,
+            492.0,
+            1152.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 15.607,
+      "sem": [
+        [
+          "black_waste_bag",
+          0.78,
+          [
+            572.0,
+            887.0,
+            650.0,
+            924.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 15.74,
+      "sem": [
+        [
+          "black_waste_bag",
+          0.75,
+          [
+            579.0,
+            887.0,
+            649.0,
+            925.0
+          ]
+        ],
+        [
+          "yellow_waste_bag",
+          0.67,
+          [
+            493.0,
+            941.0,
+            542.0,
+            1082.0
+          ]
+        ],
+        [
+          "red_waste_bag",
+          0.68,
+          [
+            484.0,
+            873.0,
+            525.0,
+            956.0
+          ]
+        ],
+        [
+          "black_waste_bag",
+          0.21,
+          [
+            456.0,
+            1061.0,
+            492.0,
+            1152.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 15.874,
+      "sem": [
+        [
+          "black_waste_bag",
+          0.76,
+          [
+            591.0,
+            890.0,
+            646.0,
+            923.0
+          ]
+        ],
+        [
+          "yellow_waste_bag",
+          0.68,
+          [
+            536.0,
+            876.0,
+            564.0,
+            965.0
+          ]
+        ],
+        [
+          "black_waste_bag",
+          0.62,
+          [
+            477.0,
+            1041.0,
+            510.0,
+            1128.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 16.007,
+      "sem": [
+        [
+          "yellow_waste_bag",
+          0.67,
+          [
+            576.0,
+            885.0,
+            611.0,
+            955.0
+          ]
+        ],
+        [
+          "red_waste_bag",
+          0.68,
+          [
+            504.0,
+            880.0,
+            547.0,
+            989.0
+          ]
+        ],
+        [
+          "black_waste_bag",
+          0.6,
+          [
+            670.0,
+            1053.0,
+            717.0,
+            1130.0
+          ]
+        ],
+        [
+          "black_waste_bag",
+          0.39,
+          [
+            462.0,
+            896.0,
+            512.0,
+            1011.0
+          ]
+        ],
+        [
+          "black_waste_bag",
+          0.29,
+          [
+            485.0,
+            1034.0,
+            519.0,
+            1120.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 16.14,
+      "sem": [
+        [
+          "yellow_waste_bag",
+          0.63,
+          [
+            580.0,
+            882.0,
+            611.0,
+            985.0
+          ]
+        ],
+        [
+          "black_waste_bag",
+          0.74,
+          [
+            485.0,
+            881.0,
+            533.0,
+            1004.0
+          ]
+        ],
+        [
+          "black_waste_bag",
+          0.69,
+          [
+            525.0,
+            1041.0,
+            572.0,
+            1171.0
+          ]
+        ],
+        [
+          "black_waste_bag",
+          0.23,
+          [
+            462.0,
+            896.0,
+            512.0,
+            1011.0
+          ]
+        ],
+        [
+          "black_waste_bag",
+          0.23,
+          [
+            485.0,
+            1034.0,
+            519.0,
+            1120.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 16.274,
+      "sem": [
+        [
+          "yellow_waste_bag",
+          0.68,
+          [
+            605.0,
+            852.0,
+            665.0,
+            970.0
+          ]
+        ],
+        [
+          "yellow_waste_bag",
+          0.68,
+          [
+            520.0,
+            878.0,
+            570.0,
+            969.0
+          ]
+        ],
+        [
+          "black_waste_bag",
+          0.23,
+          [
+            485.0,
+            1034.0,
+            519.0,
+            1120.0
+          ]
+        ],
+        [
+          "black_waste_bag",
+          0.2,
+          [
+            669.0,
+            1109.0,
+            755.0,
+            1150.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 16.407,
+      "sem": [
+        [
+          "black_waste_bag",
+          0.26,
+          [
+            546.0,
+            1048.0,
+            598.0,
+            1176.0
+          ]
+        ],
+        [
+          "yellow_waste_bag",
+          0.67,
+          [
+            627.0,
+            877.0,
+            660.0,
+            994.0
+          ]
+        ],
+        [
+          "black_waste_bag",
+          0.67,
+          [
+            454.0,
+            897.0,
+            545.0,
+            963.0
+          ]
+        ],
+        [
+          "black_waste_bag",
+          0.2,
+          [
+            669.0,
+            1109.0,
+            755.0,
+            1150.0
+          ]
+        ],
+        [
+          "red_waste_bag",
+          0.56,
+          [
+            704.0,
+            931.0,
+            748.0,
+            1002.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 16.541,
+      "sem": [
+        [
+          "black_waste_bag",
+          0.26,
+          [
+            546.0,
+            1048.0,
+            598.0,
+            1176.0
+          ]
+        ],
+        [
+          "red_waste_bag",
+          0.55,
+          [
+            718.0,
+            924.0,
+            780.0,
+            990.0
+          ]
+        ],
+        [
+          "yellow_waste_bag",
+          0.35,
+          [
+            634.0,
+            878.0,
+            667.0,
+            996.0
+          ]
+        ],
+        [
+          "black_waste_bag",
+          0.2,
+          [
+            669.0,
+            1109.0,
+            755.0,
+            1150.0
+          ]
+        ],
+        [
+          "red_waste_bag",
+          0.2,
+          [
+            704.0,
+            931.0,
+            748.0,
+            1002.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 16.674,
+      "sem": [
+        [
+          "black_waste_bag",
+          0.26,
+          [
+            546.0,
+            1048.0,
+            598.0,
+            1176.0
+          ]
+        ],
+        [
+          "red_waste_bag",
+          0.51,
+          [
+            748.0,
+            944.0,
+            807.0,
+            1004.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 16.807,
+      "sem": [
+        [
+          "black_waste_bag",
+          0.45,
+          [
+            707.0,
+            947.0,
+            750.0,
+            1017.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 16.941,
+      "sem": [
+        [
+          "black_waste_bag",
+          0.31,
+          [
+            707.0,
+            947.0,
+            750.0,
+            1017.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 17.074,
+      "sem": [
+        [
+          "black_waste_bag",
+          0.73,
+          [
+            743.0,
+            1189.0,
+            793.0,
+            1291.0
+          ]
+        ],
+        [
+          "yellow_waste_bag",
+          0.65,
+          [
+            910.0,
+            966.0,
+            937.0,
+            1057.0
+          ]
+        ]
+      ]
+    },
+    {
+      "t": 17.208,
+      "sem": [
+        [
+          "black_waste_bag",
+          0.23,
+          [
+            697.0,
+            965.0,
+            742.0,
+            1047.0
+          ]
+        ],
+        [
+          "yellow_waste_bag",
+          0.28,
+          [
+            910.0,
+            966.0,
+            937.0,
+            1057.0
+          ]
+        ]
+      ]
+    }
+  ]
+}

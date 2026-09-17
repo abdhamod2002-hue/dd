@@ -56,3 +56,74 @@ Thumbs.db
 
 # Docker volumes
 pgdata/
+
+# Databases (generated at runtime)
+*.db
+
+# Logs
+*.log
+
+# Frame exports / screenshots
+frame_*.jpg
+
+# Generated diagrams
+*.svg
+*.gv
+
+# Ultralytics training runs
+runs/
+
+# Large model weights (not yolov8n.pt which is committed)
+yolov8n_cpu.pt
+yolov8s-world.pt
+models/movenet/
+inference/evidence/face_models/
+inference/evidence/haarcascades/
+
+# Training data
+data/
+datasets/
+real_train/
+crops/
+
+# Run output directories
+phase1_after_frames/
+phase1_before_frames/
+phase1_runs/
+phase2_runs/
+phase3_runs/
+phase4_runs/
+phase4a_runs/
+phase_rootcause/
+layer1_runs/
+adaptive_runs/
+novelty_output/
+validation_p0_runs/
+
+# Temp / debug scripts
+_tmp_*.py
+_trash_*.py
+tmp_*.py
+
+# Archived code
+_archive/
+
+# Tool output dirs
+.audit/
+.claude/
+.commandcode/
+.diag/
+.nettest/
+.reference/
+.tooling/
+.uitest/
+.workbuddy-ai/
+
+# Audit frames/screenshots (large generated images)
+project_audit/*_frames/
+project_audit/*_screenshots/
+project_audit/*_forensics/
+
+# Build artifacts
+*.cmd
+*.done

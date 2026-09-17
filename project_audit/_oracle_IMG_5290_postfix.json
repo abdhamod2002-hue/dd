@@ -1,0 +1,1354 @@
+{
+  "mode": "POSTFIX_FULL_VIDEO",
+  "video": "D:\\22\\IMG_5290.MOV",
+  "frames": 1140,
+  "elapsed": 257.79,
+  "fps": 59.97369574747918,
+  "summary": {
+    "total_candidates": 3,
+    "confirmed_violations": 0,
+    "rejected_candidates": 3,
+    "acceptance_rate": 0.0,
+    "rejection_reason_counts": {
+      "NO_RELEASE_TRANSITION": 1,
+      "NOT_ENOUGH_CARRIED_FRAMES": 2
+    },
+    "active_pairs": 0,
+    "adaptive": {
+      "tiers": 3,
+      "tier_summaries": [
+        {
+          "total_candidates": 3,
+          "confirmed_violations": 0,
+          "rejected_candidates": 3,
+          "acceptance_rate": 0.0,
+          "rejection_reason_counts": {
+            "NO_RELEASE_TRANSITION": 1,
+            "NOT_ENOUGH_CARRIED_FRAMES": 2
+          },
+          "active_pairs": 0
+        },
+        {
+          "total_candidates": 3,
+          "confirmed_violations": 0,
+          "rejected_candidates": 3,
+          "acceptance_rate": 0.0,
+          "rejection_reason_counts": {
+            "NO_RELEASE_TRANSITION": 2,
+            "NOT_ENOUGH_CARRIED_FRAMES": 1
+          },
+          "active_pairs": 0
+        },
+        {
+          "total_candidates": 6,
+          "confirmed_violations": 0,
+          "rejected_candidates": 6,
+          "acceptance_rate": 0.0,
+          "rejection_reason_counts": {
+            "PICKED_BACK_UP": 1,
+            "NO_RELEASE_TRANSITION": 2,
+            "NOT_ENOUGH_CARRIED_FRAMES": 3
+          },
+          "active_pairs": 0
+        }
+      ],
+      "learned_overrides": {
+        "release_distance_ratio": 0.22,
+        "release_distance_floor": 0.1,
+        "min_carried_frames": 4
+      },
+      "videos_analyzed": 1
+    }
+  },
+  "confirmed": [],
+  "rejected": [
+    {
+      "reason": "NO_RELEASE_TRANSITION",
+      "state": "BAG_CARRIED",
+      "frames": {
+        "carry_start": 753,
+        "release": null,
+        "ground": null,
+        "departure": null,
+        "confirmed": null
+      },
+      "timestamps": {
+        "carry_start": 1789195429.210127,
+        "release": null,
+        "ground": null,
+        "departure": null,
+        "confirmed": null
+      },
+      "evidence": {
+        "carry_score": 1.0,
+        "release_score": 0.0,
+        "stationary_score": 0.0,
+        "departure_score": 0.0,
+        "association_score": 0.878,
+        "detection_score": 1.0,
+        "confidence": 0.304
+      },
+      "bag_class": "white_waste_bag",
+      "event_actor_person_uid": 1,
+      "event_object_uid": 100002,
+      "details": {
+        "carried_frames": 15,
+        "stationary_frames": 0,
+        "departed_frames": 0,
+        "max_departure_ratio": 0.0,
+        "mean_bag_confidence": 0.6176,
+        "fallback_frames": 17,
+        "other_person_closer_frames": 0,
+        "ambiguous_frames": 0,
+        "location_status": "LOCATION_AMBIGUOUS",
+        "ground_evidence_frames": 0,
+        "bin_zone_frames": 0,
+        "active_thresholds": {
+          "min_carried_frames": 6,
+          "smoothing_window": 5,
+          "release_distance_ratio": 0.35,
+          "release_distance_floor": 0.15,
+          "release_window_frames": 4,
+          "feet_release_frames": 3,
+          "departure_motion_ratio": 0.65,
+          "departure_distance_ratio": 1.25,
+          "min_abandonment_frames": 8,
+          "stationary_max_pixel_step": 40.0,
+          "stationary_grace_frames": 3,
+          "min_stationary_frames": 8,
+          "max_pair_age_frames": 30,
+          "max_fallback_tracker_gap_frames": 40,
+          "min_event_confidence": 0.5,
+          "min_departed_frames": 2,
+          "confirmation_grace_frames": 8
+        }
+      }
+    },
+    {
+      "reason": "NOT_ENOUGH_CARRIED_FRAMES",
+      "state": "BAG_NEAR_PERSON",
+      "frames": {
+        "carry_start": 873,
+        "release": null,
+        "ground": null,
+        "departure": null,
+        "confirmed": null
+      },
+      "timestamps": {
+        "carry_start": 1789195431.2110043,
+        "release": null,
+        "ground": null,
+        "departure": null,
+        "confirmed": null
+      },
+      "evidence": {
+        "carry_score": 0.8333,
+        "release_score": 0.0,
+        "stationary_score": 0.0,
+        "departure_score": 0.0,
+        "association_score": 0.8238,
+        "detection_score": 1.0,
+        "confidence": 0.2616
+      },
+      "bag_class": "yellow_waste_bag",
+      "event_actor_person_uid": 1,
+      "event_object_uid": 100003,
+      "details": {
+        "carried_frames": 5,
+        "stationary_frames": 0,
+        "departed_frames": 0,
+        "max_departure_ratio": 0.0,
+        "mean_bag_confidence": 0.6807,
+        "fallback_frames": 7,
+        "other_person_closer_frames": 0,
+        "ambiguous_frames": 0,
+        "location_status": "LOCATION_AMBIGUOUS",
+        "ground_evidence_frames": 0,
+        "bin_zone_frames": 0,
+        "active_thresholds": {
+          "min_carried_frames": 6,
+          "smoothing_window": 5,
+          "release_distance_ratio": 0.35,
+          "release_distance_floor": 0.15,
+          "release_window_frames": 4,
+          "feet_release_frames": 3,
+          "departure_motion_ratio": 0.65,
+          "departure_distance_ratio": 1.25,
+          "min_abandonment_frames": 8,
+          "stationary_max_pixel_step": 40.0,
+          "stationary_grace_frames": 3,
+          "min_stationary_frames": 8,
+          "max_pair_age_frames": 30,
+          "max_fallback_tracker_gap_frames": 40,
+          "min_event_confidence": 0.5,
+          "min_departed_frames": 2,
+          "confirmation_grace_frames": 8
+        }
+      }
+    },
+    {
+      "reason": "NOT_ENOUGH_CARRIED_FRAMES",
+      "state": "BAG_NEAR_PERSON",
+      "frames": {
+        "carry_start": 985,
+        "release": null,
+        "ground": null,
+        "departure": null,
+        "confirmed": null
+      },
+      "timestamps": {
+        "carry_start": 1789195433.0784895,
+        "release": null,
+        "ground": null,
+        "departure": null,
+        "confirmed": null
+      },
+      "evidence": {
+        "carry_score": 0.5,
+        "release_score": 0.0,
+        "stationary_score": 0.0,
+        "departure_score": 0.0,
+        "association_score": 0.8324,
+        "detection_score": 1.0,
+        "confidence": 0.1874
+      },
+      "bag_class": "yellow_waste_bag",
+      "event_actor_person_uid": 1,
+      "event_object_uid": 100006,
+      "details": {
+        "carried_frames": 3,
+        "stationary_frames": 0,
+        "departed_frames": 0,
+        "max_departure_ratio": 0.0,
+        "mean_bag_confidence": 0.5242,
+        "fallback_frames": 5,
+        "other_person_closer_frames": 0,
+        "ambiguous_frames": 0,
+        "location_status": "LOCATION_AMBIGUOUS",
+        "ground_evidence_frames": 0,
+        "bin_zone_frames": 0,
+        "active_thresholds": {
+          "min_carried_frames": 6,
+          "smoothing_window": 5,
+          "release_distance_ratio": 0.35,
+          "release_distance_floor": 0.15,
+          "release_window_frames": 4,
+          "feet_release_frames": 3,
+          "departure_motion_ratio": 0.65,
+          "departure_distance_ratio": 1.25,
+          "min_abandonment_frames": 8,
+          "stationary_max_pixel_step": 40.0,
+          "stationary_grace_frames": 3,
+          "min_stationary_frames": 8,
+          "max_pair_age_frames": 30,
+          "max_fallback_tracker_gap_frames": 40,
+          "min_event_confidence": 0.5,
+          "min_departed_frames": 2,
+          "confirmation_grace_frames": 8
+        }
+      }
+    }
+  ],
+  "window_max_semantic": 9,
+  "window_max_promoted": 9,
+  "semantic_samples": [
+    {
+      "t": 12.505,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.687,
+          "bbox": [
+            214.1,
+            886.0,
+            238.4,
+            972.9
+          ]
+        },
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.667,
+          "bbox": [
+            161.2,
+            916.0,
+            218.4,
+            957.0
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 12.539,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.677,
+          "bbox": [
+            216.1,
+            884.6,
+            240.9,
+            972.2
+          ]
+        },
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.693,
+          "bbox": [
+            161.6,
+            916.0,
+            219.0,
+            956.5
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 12.589,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.673,
+          "bbox": [
+            219.0,
+            883.0,
+            244.0,
+            971.8
+          ]
+        },
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.692,
+          "bbox": [
+            162.2,
+            915.8,
+            220.5,
+            956.0
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 12.672,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.652,
+          "bbox": [
+            224.1,
+            882.5,
+            248.5,
+            973.1
+          ]
+        },
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.684,
+          "bbox": [
+            163.1,
+            914.5,
+            223.0,
+            954.8
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 12.756,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.648,
+          "bbox": [
+            227.8,
+            883.4,
+            252.1,
+            974.8
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 12.806,
+      "sem": [
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.648,
+          "bbox": [
+            221.4,
+            888.0,
+            253.6,
+            974.6
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 12.839,
+      "sem": [
+        {
+          "cls": "Garbage Bag",
+          "src": "yolo",
+          "conf": 0.257,
+          "bbox": [
+            3.9,
+            13.1,
+            155.7,
+            458.7
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 12.922,
+      "sem": [
+        {
+          "cls": "Garbage Bag",
+          "src": "yolo",
+          "conf": 0.267,
+          "bbox": [
+            3.4,
+            11.8,
+            155.6,
+            457.4
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 12.939,
+      "sem": [
+        {
+          "cls": "yellow_waste_bag",
+          "src": "color",
+          "conf": 0.675,
+          "bbox": [
+            214.8,
+            882.9,
+            256.5,
+            957.0
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 13.339,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.68,
+          "bbox": [
+            274.8,
+            880.6,
+            301.9,
+            976.2
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 13.506,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.647,
+          "bbox": [
+            295.0,
+            883.8,
+            323.2,
+            981.6
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 13.756,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.547,
+          "bbox": [
+            420.9,
+            888.1,
+            507.0,
+            943.9
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 13.839,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.599,
+          "bbox": [
+            391.9,
+            870.8,
+            459.2,
+            944.6
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 13.873,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.566,
+          "bbox": [
+            430.9,
+            889.2,
+            527.0,
+            937.1
+          ]
+        },
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.635,
+          "bbox": [
+            369.4,
+            870.8,
+            422.2,
+            957.0
+          ]
+        },
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.703,
+          "bbox": [
+            400.0,
+            900.5,
+            478.4,
+            972.8
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 13.923,
+      "sem": [
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.756,
+          "bbox": [
+            364.8,
+            929.0,
+            427.4,
+            1016.9
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 14.006,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.652,
+          "bbox": [
+            338.1,
+            871.6,
+            369.0,
+            980.5
+          ]
+        },
+        {
+          "cls": "yellow_waste_bag",
+          "src": "color",
+          "conf": 0.815,
+          "bbox": [
+            481.9,
+            895.2,
+            571.0,
+            970.1
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 14.09,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.675,
+          "bbox": [
+            341.1,
+            873.6,
+            373.0,
+            984.0
+          ]
+        },
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.732,
+          "bbox": [
+            437.0,
+            919.5,
+            529.0,
+            974.5
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 14.14,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.69,
+          "bbox": [
+            342.6,
+            875.2,
+            375.0,
+            987.1
+          ]
+        },
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.753,
+          "bbox": [
+            439.2,
+            926.4,
+            521.6,
+            974.6
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 14.173,
+      "sem": [
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.635,
+          "bbox": [
+            441.9,
+            889.0,
+            526.2,
+            939.1
+          ]
+        },
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.692,
+          "bbox": [
+            343.8,
+            876.2,
+            376.5,
+            989.2
+          ]
+        },
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.632,
+          "bbox": [
+            439.2,
+            926.4,
+            521.6,
+            974.6
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 14.256,
+      "sem": [
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.752,
+          "bbox": [
+            442.5,
+            929.1,
+            509.4,
+            968.6
+          ]
+        },
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.694,
+          "bbox": [
+            346.2,
+            877.4,
+            378.8,
+            992.1
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 14.273,
+      "sem": [
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.737,
+          "bbox": [
+            442.9,
+            936.8,
+            506.1,
+            973.6
+          ]
+        },
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.7,
+          "bbox": [
+            347.0,
+            877.1,
+            379.0,
+            992.5
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 14.34,
+      "sem": [
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.736,
+          "bbox": [
+            455.1,
+            913.2,
+            559.0,
+            960.2
+          ]
+        },
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.713,
+          "bbox": [
+            350.0,
+            876.4,
+            380.2,
+            993.1
+          ]
+        },
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.263,
+          "bbox": [
+            439.2,
+            926.4,
+            521.6,
+            974.6
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 14.406,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.716,
+          "bbox": [
+            352.0,
+            875.8,
+            383.1,
+            993.1
+          ]
+        },
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.263,
+          "bbox": [
+            439.2,
+            926.4,
+            521.6,
+            974.6
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 14.423,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.713,
+          "bbox": [
+            352.8,
+            875.5,
+            384.1,
+            993.1
+          ]
+        },
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.263,
+          "bbox": [
+            439.2,
+            926.4,
+            521.6,
+            974.6
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 14.506,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.701,
+          "bbox": [
+            355.6,
+            875.2,
+            389.8,
+            991.4
+          ]
+        },
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.745,
+          "bbox": [
+            443.0,
+            927.3,
+            519.5,
+            974.0
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 14.54,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.691,
+          "bbox": [
+            357.4,
+            875.1,
+            392.5,
+            990.4
+          ]
+        },
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.74,
+          "bbox": [
+            447.5,
+            928.9,
+            516.9,
+            973.2
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 14.59,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.679,
+          "bbox": [
+            359.1,
+            874.9,
+            396.6,
+            988.5
+          ]
+        },
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.689,
+          "bbox": [
+            453.6,
+            932.8,
+            511.9,
+            972.4
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 14.673,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.643,
+          "bbox": [
+            362.0,
+            875.1,
+            405.0,
+            985.5
+          ]
+        },
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.413,
+          "bbox": [
+            453.6,
+            932.8,
+            511.9,
+            972.4
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 14.756,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.618,
+          "bbox": [
+            365.8,
+            877.1,
+            413.9,
+            984.6
+          ]
+        },
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.241,
+          "bbox": [
+            453.6,
+            932.8,
+            511.9,
+            972.4
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 14.806,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.62,
+          "bbox": [
+            368.8,
+            878.0,
+            418.6,
+            985.2
+          ]
+        },
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.68,
+          "bbox": [
+            442.1,
+            949.1,
+            488.8,
+            1003.1
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 14.84,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.621,
+          "bbox": [
+            371.2,
+            878.4,
+            421.6,
+            985.6
+          ]
+        },
+        {
+          "cls": "yellow_waste_bag",
+          "src": "color",
+          "conf": 0.629,
+          "bbox": [
+            437.9,
+            932.9,
+            480.2,
+            1002.4
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 14.923,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.642,
+          "bbox": [
+            377.8,
+            877.4,
+            426.0,
+            986.2
+          ]
+        },
+        {
+          "cls": "yellow_waste_bag",
+          "src": "color",
+          "conf": 0.594,
+          "bbox": [
+            429.4,
+            933.4,
+            469.0,
+            1018.6
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 14.94,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.647,
+          "bbox": [
+            379.0,
+            876.8,
+            426.2,
+            986.5
+          ]
+        },
+        {
+          "cls": "yellow_waste_bag",
+          "src": "color",
+          "conf": 0.547,
+          "bbox": [
+            429.4,
+            933.4,
+            469.0,
+            1018.6
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 15.007,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.666,
+          "bbox": [
+            416.0,
+            958.2,
+            452.9,
+            1075.8
+          ]
+        },
+        {
+          "cls": "yellow_waste_bag",
+          "src": "color",
+          "conf": 0.652,
+          "bbox": [
+            395.6,
+            886.6,
+            443.6,
+            1000.4
+          ]
+        },
+        {
+          "cls": "yellow_waste_bag",
+          "src": "color",
+          "conf": 0.356,
+          "bbox": [
+            429.4,
+            933.4,
+            469.0,
+            1018.6
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 15.073,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.711,
+          "bbox": [
+            390.4,
+            888.4,
+            426.4,
+            1003.0
+          ]
+        },
+        {
+          "cls": "yellow_waste_bag",
+          "src": "color",
+          "conf": 0.621,
+          "bbox": [
+            440.0,
+            900.1,
+            473.8,
+            994.6
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 15.09,
+      "sem": [
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.718,
+          "bbox": [
+            387.9,
+            870.5,
+            424.1,
+            989.8
+          ]
+        },
+        {
+          "cls": "yellow_waste_bag",
+          "src": "color",
+          "conf": 0.622,
+          "bbox": [
+            449.4,
+            884.2,
+            482.2,
+            976.4
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 15.173,
+      "sem": [
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.845,
+          "bbox": [
+            529.2,
+            885.1,
+            652.5,
+            926.2
+          ]
+        },
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.724,
+          "bbox": [
+            390.8,
+            870.0,
+            424.8,
+            992.2
+          ]
+        },
+        {
+          "cls": "yellow_waste_bag",
+          "src": "color",
+          "conf": 0.654,
+          "bbox": [
+            471.5,
+            864.8,
+            499.0,
+            954.1
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 15.207,
+      "sem": [
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.819,
+          "bbox": [
+            534.0,
+            882.9,
+            652.1,
+            925.8
+          ]
+        },
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.718,
+          "bbox": [
+            392.1,
+            870.2,
+            425.9,
+            992.8
+          ]
+        },
+        {
+          "cls": "yellow_waste_bag",
+          "src": "color",
+          "conf": 0.626,
+          "bbox": [
+            474.2,
+            864.2,
+            502.0,
+            953.9
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 15.257,
+      "sem": [
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.809,
+          "bbox": [
+            540.8,
+            883.1,
+            652.0,
+            925.4
+          ]
+        },
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.71,
+          "bbox": [
+            394.4,
+            870.9,
+            428.8,
+            995.8
+          ]
+        },
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.587,
+          "bbox": [
+            481.8,
+            864.5,
+            515.0,
+            957.1
+          ]
+        }
+      ],
+      "np": 1
+    },
+    {
+      "t": 15.34,
+      "sem": [
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.796,
+          "bbox": [
+            550.5,
+            886.4,
+            651.2,
+            925.0
+          ]
+        },
+        {
+          "cls": "red_waste_bag",
+          "src": "color",
+          "conf": 0.67,
+          "bbox": [
+            396.0,
+            873.9,
+            435.2,
+            1001.5
+          ]
+        },
+        {
+          "cls": "black_waste_bag",
+          "src": "color",
+          "conf": 0.542,
+          "bbox": [
+            558.0,
+            1128.8,
+            696.0,
+            1168.1
+          ]
+        }
+      ],
+      "np": 1
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+VIDEO: D:\22\IMG_5303.MOV
+SIZE: 15.7 MB
+Loading YOLO...
+  YOLO: 1.63s
+Loading MoveNet...
+  MoveNet: 11.66s
+Opening video...
+FPS: 59.98137224464452
+  Frame 50, ticks=7, elapsed=13.1s

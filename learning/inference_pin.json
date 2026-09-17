@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "pin_schema": 1,
+  "description": "Pinned inference overrides (P0-A). Updated only by promote_learning_pin().",
+  "source_videos_analyzed": 95,
+  "step_index": {
+    "NO_RELEASE_TRANSITION": 3,
+    "PERSON_NOT_DETECTED": 2,
+    "NOT_ENOUGH_CARRIED_FRAMES": 3,
+    "PERSON_DID_NOT_DEPART": 3,
+    "BAG_NOT_DETECTED": 2
+  },
+  "adjusted_thresholds": {
+    "release_distance_ratio": 0.12,
+    "release_distance_floor": 0.1,
+    "release_window_frames": 8,
+    "feet_release_frames": 2,
+    "max_pair_age_frames": 90,
+    "min_carried_frames": 3,
+    "smoothing_window": 3,
+    "departure_motion_ratio": 0.45,
+    "departure_distance_ratio": 0.85,
+    "min_abandonment_frames": 5,
+    "max_fallback_tracker_gap_frames": 45
+  },
+  "rejection_reasons": {},
+  "history": {}
+}

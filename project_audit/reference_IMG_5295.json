@@ -1,0 +1,485 @@
+{
+  "video_metadata": {
+    "filename": "IMG_5295.MOV",
+    "total_duration_seconds": 24.5,
+    "fps_assumed": 30
+  },
+  "timeline_per_second": [
+    {
+      "timestamp_start": 0.0,
+      "timestamp_end": 1.0,
+      "number_of_people_visible": 0,
+      "persons": [],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [],
+      "waste_objects": ["pre_existing_ground_debris_near_dumpster"],
+      "container_interaction": null,
+      "activity_summary": "Static street scene showing metal dumpster on left, parked car on right, and pre-existing litter on pavement. No persons visible."
+    },
+    {
+      "timestamp_start": 1.0,
+      "timestamp_end": 2.0,
+      "number_of_people_visible": 0,
+      "persons": [],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [],
+      "waste_objects": ["pre_existing_ground_debris_near_dumpster"],
+      "container_interaction": null,
+      "activity_summary": "Static street scene; no moving entities."
+    },
+    {
+      "timestamp_start": 2.0,
+      "timestamp_end": 3.0,
+      "number_of_people_visible": 0,
+      "persons": [],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [],
+      "waste_objects": ["pre_existing_ground_debris_near_dumpster"],
+      "container_interaction": null,
+      "activity_summary": "Static street scene; no moving entities."
+    },
+    {
+      "timestamp_start": 3.0,
+      "timestamp_end": 4.0,
+      "number_of_people_visible": 0,
+      "persons": [],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [],
+      "waste_objects": ["pre_existing_ground_debris_near_dumpster"],
+      "container_interaction": null,
+      "activity_summary": "Static street scene; no moving entities."
+    },
+    {
+      "timestamp_start": 4.0,
+      "timestamp_end": 5.0,
+      "number_of_people_visible": 0,
+      "persons": [],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [],
+      "waste_objects": ["pre_existing_ground_debris_near_dumpster"],
+      "container_interaction": null,
+      "activity_summary": "Static street scene; no moving entities."
+    },
+    {
+      "timestamp_start": 5.0,
+      "timestamp_end": 6.0,
+      "number_of_people_visible": 0,
+      "persons": [],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [],
+      "waste_objects": ["pre_existing_ground_debris_near_dumpster"],
+      "container_interaction": null,
+      "activity_summary": "Static street scene; no moving entities."
+    },
+    {
+      "timestamp_start": 6.0,
+      "timestamp_end": 7.0,
+      "number_of_people_visible": 0,
+      "persons": [],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [],
+      "waste_objects": ["pre_existing_ground_debris_near_dumpster"],
+      "container_interaction": null,
+      "activity_summary": "Static street scene; no moving entities."
+    },
+    {
+      "timestamp_start": 7.0,
+      "timestamp_end": 8.0,
+      "number_of_people_visible": 0,
+      "persons": [],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [],
+      "waste_objects": ["pre_existing_ground_debris_near_dumpster"],
+      "container_interaction": null,
+      "activity_summary": "Static street scene; no moving entities."
+    },
+    {
+      "timestamp_start": 8.0,
+      "timestamp_end": 9.0,
+      "number_of_people_visible": 0,
+      "persons": [],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [],
+      "waste_objects": ["pre_existing_ground_debris_near_dumpster"],
+      "container_interaction": null,
+      "activity_summary": "Static street scene; no moving entities."
+    },
+    {
+      "timestamp_start": 9.0,
+      "timestamp_end": 10.0,
+      "number_of_people_visible": 0,
+      "persons": [],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [],
+      "waste_objects": ["pre_existing_ground_debris_near_dumpster"],
+      "container_interaction": null,
+      "activity_summary": "Static street scene; background voice heard."
+    },
+    {
+      "timestamp_start": 10.0,
+      "timestamp_end": 11.0,
+      "number_of_people_visible": 0,
+      "persons": [],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [],
+      "waste_objects": ["pre_existing_ground_debris_near_dumpster"],
+      "container_interaction": null,
+      "activity_summary": "Static street scene; no movement."
+    },
+    {
+      "timestamp_start": 11.0,
+      "timestamp_end": 12.0,
+      "number_of_people_visible": 0,
+      "persons": [],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [],
+      "waste_objects": ["pre_existing_ground_debris_near_dumpster"],
+      "container_interaction": null,
+      "activity_summary": "Static street scene; no movement."
+    },
+    {
+      "timestamp_start": 12.0,
+      "timestamp_end": 13.0,
+      "number_of_people_visible": 0,
+      "persons": [],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [],
+      "waste_objects": ["pre_existing_ground_debris_near_dumpster"],
+      "container_interaction": null,
+      "activity_summary": "Static street scene; no movement."
+    },
+    {
+      "timestamp_start": 13.0,
+      "timestamp_end": 14.0,
+      "number_of_people_visible": 0,
+      "persons": [],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [],
+      "waste_objects": ["pre_existing_ground_debris_near_dumpster"],
+      "container_interaction": null,
+      "activity_summary": "Static street scene; no movement."
+    },
+    {
+      "timestamp_start": 14.0,
+      "timestamp_end": 15.0,
+      "number_of_people_visible": 0,
+      "persons": [],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [],
+      "waste_objects": ["pre_existing_ground_debris_near_dumpster"],
+      "container_interaction": null,
+      "activity_summary": "Static street scene; no movement."
+    },
+    {
+      "timestamp_start": 15.0,
+      "timestamp_end": 16.0,
+      "number_of_people_visible": 0,
+      "persons": [],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [],
+      "waste_objects": ["pre_existing_ground_debris_near_dumpster"],
+      "container_interaction": null,
+      "activity_summary": "Static street scene; person about to enter."
+    },
+    {
+      "timestamp_start": 16.0,
+      "timestamp_end": 17.0,
+      "number_of_people_visible": 1,
+      "persons": [
+        {
+          "person_id": "person_1",
+          "action": "entering_and_walking_while_carrying",
+          "holding_object": true,
+          "hand_used": "right_hand",
+          "object_id": "object_1",
+          "proximity_to_bin": "approaching_from_right",
+          "interacts_with_bin": false
+        }
+      ],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [
+        {
+          "object_id": "object_1",
+          "description": "transparent plastic drinking water bottle with blue label/cap",
+          "color": "clear_blue",
+          "held_by": "person_1",
+          "on_ground": false
+        }
+      ],
+      "waste_objects": ["object_1"],
+      "container_interaction": null,
+      "activity_summary": "person_1 enters from mid-right, walking past the parked vehicle toward the dumpster while holding clear plastic bottle (object_1) in right hand."
+    },
+    {
+      "timestamp_start": 17.0,
+      "timestamp_end": 18.0,
+      "number_of_people_visible": 1,
+      "persons": [
+        {
+          "person_id": "person_1",
+          "action": "walking_and_releasing_object",
+          "holding_object": true,
+          "hand_used": "right_hand",
+          "object_id": "object_1",
+          "proximity_to_bin": "adjacent_to_front_right_corner",
+          "interacts_with_bin": false
+        }
+      ],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [
+        {
+          "object_id": "object_1",
+          "description": "transparent plastic water bottle with blue label",
+          "color": "clear_blue",
+          "held_by": "person_1_then_released",
+          "on_ground": false
+        }
+      ],
+      "waste_objects": ["object_1"],
+      "container_interaction": null,
+      "activity_summary": "person_1 walks past the dumpster corner; at approximately 00:17.8 - 00:18.0, person_1 lets go of / drops object_1 from right hand toward the asphalt."
+    },
+    {
+      "timestamp_start": 18.0,
+      "timestamp_end": 19.0,
+      "number_of_people_visible": 1,
+      "persons": [
+        {
+          "person_id": "person_1",
+          "action": "walking_away_after_drop",
+          "holding_object": false,
+          "hand_used": null,
+          "object_id": null,
+          "proximity_to_bin": "passing_front",
+          "interacts_with_bin": false
+        }
+      ],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [
+        {
+          "object_id": "object_1",
+          "description": "transparent plastic water bottle",
+          "color": "clear_blue",
+          "held_by": null,
+          "on_ground": true
+        }
+      ],
+      "waste_objects": ["object_1"],
+      "container_interaction": null,
+      "activity_summary": "object_1 hits ground at ~00:18.4 in front of the dumpster on the asphalt. person_1 continues walking diagonally toward bottom-left with empty right hand."
+    },
+    {
+      "timestamp_start": 19.0,
+      "timestamp_end": 20.0,
+      "number_of_people_visible": 1,
+      "persons": [
+        {
+          "person_id": "person_1",
+          "action": "walking_away",
+          "holding_object": false,
+          "hand_used": null,
+          "object_id": null,
+          "proximity_to_bin": "moving_away_to_foreground",
+          "interacts_with_bin": false
+        }
+      ],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [
+        {
+          "object_id": "object_1",
+          "description": "transparent plastic water bottle resting on asphalt",
+          "color": "clear_blue",
+          "held_by": null,
+          "on_ground": true
+        }
+      ],
+      "waste_objects": ["object_1"],
+      "container_interaction": null,
+      "activity_summary": "person_1 moves further into foreground left, leaving object_1 abandoned on the pavement. No pickup occurs."
+    },
+    {
+      "timestamp_start": 20.0,
+      "timestamp_end": 21.0,
+      "number_of_people_visible": 1,
+      "persons": [
+        {
+          "person_id": "person_1",
+          "action": "walking_toward_exit",
+          "holding_object": false,
+          "hand_used": null,
+          "object_id": null,
+          "proximity_to_bin": "distant_foreground",
+          "interacts_with_bin": false
+        }
+      ],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [
+        {
+          "object_id": "object_1",
+          "description": "transparent plastic water bottle on asphalt",
+          "color": "clear_blue",
+          "held_by": null,
+          "on_ground": true
+        }
+      ],
+      "waste_objects": ["object_1"],
+      "container_interaction": null,
+      "activity_summary": "person_1 approaches bottom-left camera edge; object_1 remains static on the ground."
+    },
+    {
+      "timestamp_start": 21.0,
+      "timestamp_end": 22.0,
+      "number_of_people_visible": 1,
+      "persons": [
+        {
+          "person_id": "person_1",
+          "action": "exiting_frame",
+          "holding_object": false,
+          "hand_used": null,
+          "object_id": null,
+          "proximity_to_bin": "exiting",
+          "interacts_with_bin": false
+        }
+      ],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [
+        {
+          "object_id": "object_1",
+          "description": "abandoned water bottle on pavement",
+          "color": "clear_blue",
+          "held_by": null,
+          "on_ground": true
+        }
+      ],
+      "waste_objects": ["object_1"],
+      "container_interaction": null,
+      "activity_summary": "person_1 exits camera view at bottom left. object_1 remains abandoned."
+    },
+    {
+      "timestamp_start": 22.0,
+      "timestamp_end": 23.0,
+      "number_of_people_visible": 0,
+      "persons": [],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [
+        {
+          "object_id": "object_1",
+          "description": "abandoned water bottle on pavement",
+          "color": "clear_blue",
+          "held_by": null,
+          "on_ground": true
+        }
+      ],
+      "waste_objects": ["object_1", "pre_existing_ground_debris_near_dumpster"],
+      "container_interaction": null,
+      "activity_summary": "person_1 has completely departed. Freshly dropped bottle (object_1) remains stationary on the pavement."
+    },
+    {
+      "timestamp_start": 23.0,
+      "timestamp_end": 24.5,
+      "number_of_people_visible": 0,
+      "persons": [],
+      "visible_vehicles": ["parked_car_dark_grey_right"],
+      "relevant_objects": [
+        {
+          "object_id": "object_1",
+          "description": "abandoned water bottle on pavement",
+          "color": "clear_blue",
+          "held_by": null,
+          "on_ground": true
+        }
+      ],
+      "waste_objects": ["object_1", "pre_existing_ground_debris_near_dumpster"],
+      "container_interaction": null,
+      "activity_summary": "Video ends. Object_1 is permanently abandoned on the ground."
+    }
+  ],
+  "people": [
+    {
+      "person_id": "person_1",
+      "first_seen": 16.2,
+      "last_seen": 21.8,
+      "approximate_appearance": "Young male, short dark hair, wearing eyeglasses",
+      "clothing_description": "White/cream t-shirt with red/magenta shoulder stripes and 'T' chest logo, black trousers/sweatpants, grey athletic sneakers",
+      "path_movement": "Enters from right sidewalk at ~00:16, walks diagonally across street past the front of the dumpster, drops water bottle at ~00:18, and departs toward bottom-left at ~00:21.8",
+      "carries_waste": true,
+      "commits_littering": true,
+      "only_passerby": false,
+      "interacts_with_bin": false
+    }
+  ],
+  "objects": [
+    {
+      "object_id": "object_1",
+      "first_seen": 16.2,
+      "last_seen": 24.5,
+      "description": "Clear plastic drinking water bottle with blue label and blue cap",
+      "color": "clear_blue",
+      "carried_by": "person_1",
+      "release_time": 17.9,
+      "ground_contact_time": 18.4,
+      "picked_up_time": null,
+      "final_state": "abandoned_on_ground"
+    }
+  ],
+  "containers": [
+    {
+      "container_id": "container_1",
+      "first_seen": 0.0,
+      "approximate_location": "Mid-ground left-of-center; large dark metal dumpster",
+      "people_approaching": ["person_1"],
+      "people_passing_near": ["person_1"],
+      "objects_placed_inside": [],
+      "interaction_type": "none_littered_on_ground_nearby"
+    }
+  ],
+  "events": [
+    {
+      "event_id": "event_1",
+      "start_time": 16.2,
+      "end_time": 24.5,
+      "release_time": 17.9,
+      "ground_contact_time": 18.4,
+      "departure_time": 21.8,
+      "actor_id": "person_1",
+      "actor_description": "Young male with eyeglasses, white t-shirt with magenta 'T' logo, black pants, grey sneakers",
+      "object_id": "object_1",
+      "object_description": "Clear plastic water bottle with blue label/cap",
+      "object_color": "clear_blue",
+      "location_description": "Asphalt pavement on street right in front of the metal dumpster",
+      "ground_or_bin": "ground",
+      "violation": true,
+      "confidence": 0.99,
+      "uncertain": false,
+      "evidence_description": "person_1 enters carrying a water bottle in right hand, releases it at 00:17.9 so it drops directly onto the asphalt at 00:18.4 near the dumpster, does not pick it up, and walks out of frame leaving the bottle abandoned."
+    }
+  ],
+  "non_violation_events": [],
+  "consistency_check": {
+    "total_unique_people": 1,
+    "total_unique_relevant_objects": 1,
+    "total_bins_or_containers": 1,
+    "total_ground_littering_events": 1,
+    "total_bin_disposals": 0,
+    "total_non_violation_people": 0,
+    "total_uncertain_events": 0
+  },
+  "critical_moments": [
+    {
+      "timestamp": 16.2,
+      "significance": "person_1 enters frame holding clear plastic bottle (object_1) in right hand."
+    },
+    {
+      "timestamp": 17.9,
+      "significance": "RELEASE: person_1 drops object_1 from right hand while walking past the dumpster."
+    },
+    {
+      "timestamp": 18.4,
+      "significance": "GROUND CONTACT: object_1 lands and settles on the pavement."
+    },
+    {
+      "timestamp": 21.8,
+      "significance": "DEPARTURE: person_1 exits the camera view at bottom-left without retrieving object_1, confirming VIOLATION = TRUE."
+    }
+  ]
+}

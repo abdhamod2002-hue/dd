@@ -1,0 +1,23 @@
+VIDEO: D:\22\IMG_5303.MOV
+SIZE: 15.7 MB
+Loading YOLO...
+  YOLO: 1.64s, classes=['bottle', 'juice-cup', 'nescafe', 'plate', 'tissue', 'Garbage Bag'], bag=True
+Loading MoveNet...
+  MoveNet: 12.90s
+  Novelty: True
+Opening video...
+FPS: 59.98137224464452
+  Frame 10, ticks=2, elapsed=4.4s
+  Frame 20, ticks=3, elapsed=6.2s
+  Frame 30, ticks=4, elapsed=7.8s
+
+RESULTS: 30 frames, 4 ticks, 7.86s
+Effective FPS: 3.8
+
+Stage                        Count     Avg ms     P50 ms     P95 ms   Total ms        %
+person_yolo                     30     191.32     131.92     154.33       5740    73.0%
+novelty                          4      15.01      16.89      17.38         60     0.8%
+movenet                          4     383.31     260.15     761.12       1533    19.5%
+bytetrack                       30       0.00       0.00       0.00          0     0.0%
+event_detector                   4       0.25       0.00       1.02          1     0.0%
+DONE

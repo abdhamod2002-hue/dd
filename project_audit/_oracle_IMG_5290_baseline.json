@@ -1,0 +1,62 @@
+{
+  "mode": "UNMODIFIED_BASELINE_FULL_VIDEO",
+  "video": "D:\\22\\IMG_5290.MOV",
+  "frames": 1140,
+  "elapsed_sec": 352.88,
+  "detector": "AdaptiveEventDetector",
+  "reference": {
+    "start_time": 13.0,
+    "end_time": 19.0,
+    "label": "ground_littering",
+    "violation": true
+  },
+  "summary": {
+    "total_candidates": 0,
+    "confirmed_violations": 0,
+    "rejected_candidates": 0,
+    "acceptance_rate": 0.0,
+    "rejection_reason_counts": {},
+    "active_pairs": 0,
+    "adaptive": {
+      "tiers": 3,
+      "tier_summaries": [
+        {
+          "total_candidates": 0,
+          "confirmed_violations": 0,
+          "rejected_candidates": 0,
+          "acceptance_rate": 0.0,
+          "rejection_reason_counts": {},
+          "active_pairs": 0
+        },
+        {
+          "total_candidates": 0,
+          "confirmed_violations": 0,
+          "rejected_candidates": 0,
+          "acceptance_rate": 0.0,
+          "rejection_reason_counts": {},
+          "active_pairs": 0
+        },
+        {
+          "total_candidates": 0,
+          "confirmed_violations": 0,
+          "rejected_candidates": 0,
+          "acceptance_rate": 0.0,
+          "rejection_reason_counts": {},
+          "active_pairs": 0
+        }
+      ],
+      "learned_overrides": {
+        "release_distance_ratio": 0.12,
+        "release_distance_floor": 0.1,
+        "release_window_frames": 8,
+        "feet_release_frames": 2,
+        "max_pair_age_frames": 90,
+        "min_carried_frames": 3,
+        "departure_motion_ratio": 0.45
+      },
+      "videos_analyzed": 71
+    }
+  },
+  "confirmed": [],
+  "rejected": []
+}

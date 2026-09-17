@@ -1,0 +1,67 @@
+{
+  "frozen_set": "frozen_test_set.v1.json",
+  "frozen_set_version": "1.0",
+  "generated_at": "20260915T115440Z",
+  "missing_videos": [],
+  "protocol": {
+    "name": "MIVIA-IWDD-style temporal event matching",
+    "reference": "https://github.com/MiviaLab/IllegalWasteDumping",
+    "delta_t_sec": 3.0,
+    "t_max_sec": 10.0,
+    "notes": "A predicted confirmation within \u0394t of the labelled event time is a TP. Predictions farther than T_max from any GT event are FP. Unmatched GT events are FN. Clip-level P/R/F1 also reported (LITTER vs hard-negative)."
+  },
+  "report": {
+    "aggregate": {
+      "scenario": "ALL",
+      "n": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "tn": 1,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "fpr": 0.0,
+      "mean_latency": 0.0,
+      "mean_fps": 3.9142954806047934
+    },
+    "confusion_matrix": {
+      "TP": 0,
+      "FP": 0,
+      "FN": 0,
+      "TN": 1
+    },
+    "temporal": null,
+    "per_scenario": {
+      "pedestrians_no_waste": {
+        "scenario": "pedestrians_no_waste",
+        "n": 1,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 1,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "fpr": 0.0,
+        "mean_latency": 0.0,
+        "mean_fps": 3.9142954806047934
+      }
+    },
+    "all_results": [
+      {
+        "clip_id": "IMG_5303",
+        "scenario": "pedestrians_no_waste",
+        "ground_truth": false,
+        "predicted": false,
+        "latency_seconds": 0.0,
+        "fps": 3.9142954806047934,
+        "gt_event_time_sec": null,
+        "pred_event_times_sec": [],
+        "temporal_tp": 0,
+        "temporal_fp": 0,
+        "temporal_fn": 0
+      }
+    ]
+  }
+}

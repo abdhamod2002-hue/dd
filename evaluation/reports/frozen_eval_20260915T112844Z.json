@@ -1,0 +1,383 @@
+{
+  "frozen_set": "frozen_test_set.v1.json",
+  "frozen_set_version": "1.0",
+  "generated_at": "20260915T112844Z",
+  "missing_videos": [],
+  "protocol": {
+    "name": "MIVIA-IWDD-style temporal event matching",
+    "reference": "https://github.com/MiviaLab/IllegalWasteDumping",
+    "delta_t_sec": 3.0,
+    "t_max_sec": 10.0,
+    "notes": "A predicted confirmation within \u0394t of the labelled event time is a TP. Predictions farther than T_max from any GT event are FP. Unmatched GT events are FN. Clip-level P/R/F1 also reported (LITTER vs hard-negative)."
+  },
+  "report": {
+    "aggregate": {
+      "scenario": "ALL",
+      "n": 11,
+      "tp": 8,
+      "fp": 1,
+      "fn": 0,
+      "tn": 2,
+      "precision": 0.8888888888888888,
+      "recall": 1.0,
+      "f1": 0.9411764705882353,
+      "fpr": 0.3333333333333333,
+      "mean_latency": 17.32222222222222,
+      "mean_fps": 5.089123220866076
+    },
+    "confusion_matrix": {
+      "TP": 8,
+      "FP": 1,
+      "FN": 0,
+      "TN": 2
+    },
+    "temporal": {
+      "tp": 8,
+      "fp": 20,
+      "fn": 0,
+      "precision": 0.2857142857142857,
+      "recall": 1.0,
+      "f1": 0.4444444444444445,
+      "delta_t_sec": 3.0,
+      "t_max_sec": 10.0
+    },
+    "per_scenario": {
+      "ground_litter_close": {
+        "scenario": "ground_litter_close",
+        "n": 1,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+        "tn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "fpr": 0.0,
+        "mean_latency": 2.8333333333333335,
+        "mean_fps": 3.1175109081481613
+      },
+      "ground_litter_dumpster_scene": {
+        "scenario": "ground_litter_dumpster_scene",
+        "n": 1,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+        "tn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "fpr": 0.0,
+        "mean_latency": 15.233333333333333,
+        "mean_fps": 5.058987640902214
+      },
+      "ground_litter_bottle": {
+        "scenario": "ground_litter_bottle",
+        "n": 1,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+        "tn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "fpr": 0.0,
+        "mean_latency": 22.433333333333334,
+        "mean_fps": 5.449537096047049
+      },
+      "ground_litter_depart": {
+        "scenario": "ground_litter_depart",
+        "n": 1,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+        "tn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "fpr": 0.0,
+        "mean_latency": 8.833333333333334,
+        "mean_fps": 5.049762881675094
+      },
+      "multiperson_selective": {
+        "scenario": "multiperson_selective",
+        "n": 1,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+        "tn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "fpr": 0.0,
+        "mean_latency": 5.9,
+        "mean_fps": 4.368471661721798
+      },
+      "ground_litter_street": {
+        "scenario": "ground_litter_street",
+        "n": 1,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+        "tn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "fpr": 0.0,
+        "mean_latency": 7.233333333333333,
+        "mean_fps": 4.662610265767936
+      },
+      "late_entry_litter": {
+        "scenario": "late_entry_litter",
+        "n": 1,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+        "tn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "fpr": 0.0,
+        "mean_latency": 20.7,
+        "mean_fps": 4.6976917976987265
+      },
+      "long_clip_one_ground_litter": {
+        "scenario": "long_clip_one_ground_litter",
+        "n": 1,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+        "tn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "fpr": 0.0,
+        "mean_latency": 1.3666666666666667,
+        "mean_fps": 2.8006392294887905
+      },
+      "carry_only_hard_negative": {
+        "scenario": "carry_only_hard_negative",
+        "n": 1,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 1,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "fpr": 0.0,
+        "mean_latency": 0.0,
+        "mean_fps": 8.295803492752821
+      },
+      "pedestrians_no_waste": {
+        "scenario": "pedestrians_no_waste",
+        "n": 1,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 1,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "fpr": 0.0,
+        "mean_latency": 0.0,
+        "mean_fps": 6.770805522413677
+      },
+      "bin_disposal_hard_negative": {
+        "scenario": "bin_disposal_hard_negative",
+        "n": 1,
+        "tp": 0,
+        "fp": 1,
+        "fn": 0,
+        "tn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "fpr": 1.0,
+        "mean_latency": 71.36666666666666,
+        "mean_fps": 5.708534932910572
+      }
+    },
+    "all_results": [
+      {
+        "clip_id": "IMG_5117",
+        "scenario": "ground_litter_close",
+        "ground_truth": true,
+        "predicted": true,
+        "latency_seconds": 2.8333333333333335,
+        "fps": 3.1175109081481613,
+        "gt_event_time_sec": 3.47,
+        "pred_event_times_sec": [
+          2.8333333333333335,
+          4.033333333333333
+        ],
+        "temporal_tp": 1,
+        "temporal_fp": 1,
+        "temporal_fn": 0
+      },
+      {
+        "clip_id": "IMG_5290",
+        "scenario": "ground_litter_dumpster_scene",
+        "ground_truth": true,
+        "predicted": true,
+        "latency_seconds": 15.233333333333333,
+        "fps": 5.058987640902214,
+        "gt_event_time_sec": 16.27,
+        "pred_event_times_sec": [
+          15.233333333333333,
+          17.633333333333333,
+          17.5,
+          17.1,
+          17.766666666666666
+        ],
+        "temporal_tp": 1,
+        "temporal_fp": 4,
+        "temporal_fn": 0
+      },
+      {
+        "clip_id": "IMG_5295",
+        "scenario": "ground_litter_bottle",
+        "ground_truth": true,
+        "predicted": true,
+        "latency_seconds": 22.433333333333334,
+        "fps": 5.449537096047049,
+        "gt_event_time_sec": 21.88,
+        "pred_event_times_sec": [
+          22.433333333333334
+        ],
+        "temporal_tp": 1,
+        "temporal_fp": 0,
+        "temporal_fn": 0
+      },
+      {
+        "clip_id": "IMG_5119",
+        "scenario": "ground_litter_depart",
+        "ground_truth": true,
+        "predicted": true,
+        "latency_seconds": 8.833333333333334,
+        "fps": 5.049762881675094,
+        "gt_event_time_sec": 9.35,
+        "pred_event_times_sec": [
+          8.833333333333334
+        ],
+        "temporal_tp": 1,
+        "temporal_fp": 0,
+        "temporal_fn": 0
+      },
+      {
+        "clip_id": "IMG_5118",
+        "scenario": "multiperson_selective",
+        "ground_truth": true,
+        "predicted": true,
+        "latency_seconds": 5.9,
+        "fps": 4.368471661721798,
+        "gt_event_time_sec": 8.01,
+        "pred_event_times_sec": [
+          5.9,
+          5.9
+        ],
+        "temporal_tp": 1,
+        "temporal_fp": 1,
+        "temporal_fn": 0
+      },
+      {
+        "clip_id": "M",
+        "scenario": "ground_litter_street",
+        "ground_truth": true,
+        "predicted": true,
+        "latency_seconds": 7.233333333333333,
+        "fps": 4.662610265767936,
+        "gt_event_time_sec": 5.34,
+        "pred_event_times_sec": [
+          7.233333333333333,
+          7.233333333333333
+        ],
+        "temporal_tp": 1,
+        "temporal_fp": 1,
+        "temporal_fn": 0
+      },
+      {
+        "clip_id": "A",
+        "scenario": "late_entry_litter",
+        "ground_truth": true,
+        "predicted": true,
+        "latency_seconds": 20.7,
+        "fps": 4.6976917976987265,
+        "gt_event_time_sec": 21.48,
+        "pred_event_times_sec": [
+          20.7,
+          22.7,
+          22.033333333333335,
+          22.833333333333332
+        ],
+        "temporal_tp": 1,
+        "temporal_fp": 3,
+        "temporal_fn": 0
+      },
+      {
+        "clip_id": "IMG_5306",
+        "scenario": "long_clip_one_ground_litter",
+        "ground_truth": true,
+        "predicted": true,
+        "latency_seconds": 1.3666666666666667,
+        "fps": 2.8006392294887905,
+        "gt_event_time_sec": 107.0,
+        "pred_event_times_sec": [
+          1.3666666666666667,
+          68.56666666666666,
+          68.7,
+          103.63333333333334,
+          103.36666666666666,
+          107.23333333333333,
+          107.9,
+          107.76666666666667,
+          107.36666666666666
+        ],
+        "temporal_tp": 1,
+        "temporal_fp": 8,
+        "temporal_fn": 0
+      },
+      {
+        "clip_id": "IMG_5115",
+        "scenario": "carry_only_hard_negative",
+        "ground_truth": false,
+        "predicted": false,
+        "latency_seconds": 0.0,
+        "fps": 8.295803492752821,
+        "gt_event_time_sec": null,
+        "pred_event_times_sec": [],
+        "temporal_tp": 0,
+        "temporal_fp": 0,
+        "temporal_fn": 0
+      },
+      {
+        "clip_id": "IMG_5303",
+        "scenario": "pedestrians_no_waste",
+        "ground_truth": false,
+        "predicted": false,
+        "latency_seconds": 0.0,
+        "fps": 6.770805522413677,
+        "gt_event_time_sec": null,
+        "pred_event_times_sec": [],
+        "temporal_tp": 0,
+        "temporal_fp": 0,
+        "temporal_fn": 0
+      },
+      {
+        "clip_id": "IMG_5305",
+        "scenario": "bin_disposal_hard_negative",
+        "ground_truth": false,
+        "predicted": true,
+        "latency_seconds": 71.36666666666666,
+        "fps": 5.708534932910572,
+        "gt_event_time_sec": null,
+        "pred_event_times_sec": [
+          71.36666666666666,
+          72.16666666666667
+        ],
+        "temporal_tp": 0,
+        "temporal_fp": 2,
+        "temporal_fn": 0
+      }
+    ]
+  }
+}

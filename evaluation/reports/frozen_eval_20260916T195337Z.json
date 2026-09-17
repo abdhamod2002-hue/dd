@@ -1,0 +1,105 @@
+{
+  "frozen_set": "frozen_test_set.v1.json",
+  "frozen_set_version": "1.0",
+  "generated_at": "20260916T195337Z",
+  "missing_videos": [],
+  "protocol": {
+    "name": "MIVIA-IWDD-style temporal event matching",
+    "reference": "https://github.com/MiviaLab/IllegalWasteDumping",
+    "delta_t_sec": 3.0,
+    "t_max_sec": 10.0,
+    "notes": "A predicted confirmation within \u0394t of the labelled event time is a TP. Predictions farther than T_max from any GT event are FP. Unmatched GT events are FN. Clip-level P/R/F1 also reported (LITTER vs hard-negative)."
+  },
+  "report": {
+    "aggregate": {
+      "scenario": "ALL",
+      "n": 2,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "tn": 0,
+      "precision": 1.0,
+      "recall": 0.5,
+      "f1": 0.6666666666666666,
+      "fpr": 0.0,
+      "mean_latency": 17.633333333333333,
+      "mean_fps": 4.847167100220478
+    },
+    "confusion_matrix": {
+      "TP": 1,
+      "FP": 0,
+      "FN": 1,
+      "TN": 0
+    },
+    "temporal": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "precision": 1.0,
+      "recall": 0.5,
+      "f1": 0.6666666666666666,
+      "delta_t_sec": 3.0,
+      "t_max_sec": 10.0
+    },
+    "per_scenario": {
+      "ground_litter_dumpster_scene": {
+        "scenario": "ground_litter_dumpster_scene",
+        "n": 1,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+        "tn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "fpr": 0.0,
+        "mean_latency": 17.633333333333333,
+        "mean_fps": 4.595350192037225
+      },
+      "ground_litter_bottle": {
+        "scenario": "ground_litter_bottle",
+        "n": 1,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "tn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "fpr": 0.0,
+        "mean_latency": 0.0,
+        "mean_fps": 5.098984008403732
+      }
+    },
+    "all_results": [
+      {
+        "clip_id": "IMG_5290",
+        "scenario": "ground_litter_dumpster_scene",
+        "ground_truth": true,
+        "predicted": true,
+        "latency_seconds": 17.633333333333333,
+        "fps": 4.595350192037225,
+        "gt_event_time_sec": 16.27,
+        "pred_event_times_sec": [
+          17.633333333333333
+        ],
+        "temporal_tp": 1,
+        "temporal_fp": 0,
+        "temporal_fn": 0
+      },
+      {
+        "clip_id": "IMG_5295",
+        "scenario": "ground_litter_bottle",
+        "ground_truth": true,
+        "predicted": false,
+        "latency_seconds": 0.0,
+        "fps": 5.098984008403732,
+        "gt_event_time_sec": 21.88,
+        "pred_event_times_sec": [],
+        "temporal_tp": 0,
+        "temporal_fp": 0,
+        "temporal_fn": 1
+      }
+    ]
+  }
+}

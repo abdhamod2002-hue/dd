@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "skills": {
+    "brand-voice": {
+      "source": "horizon-foundry/foundry",
+      "sourceType": "github",
+      "skillPath": "skills/brand-voice/SKILL.md",
+      "computedHash": "c793b0a3b38320fc5af1dee18d0a39a847c986135e954ff85a7072e973e602c5"
+    },
+    "document": {
+      "source": "horizon-foundry/foundry",
+      "sourceType": "github",
+      "skillPath": "skills/document/SKILL.md",
+      "computedHash": "5dc9b9c22dea9100af056c4f5e7d5dcbb1e36feb0a92c93769cf388215e1069c"
+    },
+    "feature-design": {
+      "source": "horizon-foundry/foundry",
+      "sourceType": "github",
+      "skillPath": "skills/feature-design/SKILL.md",
+      "computedHash": "ff21a94c802f06a6c3d6dc14d69278805e77dfb499d0c6ddca42f7edf965305c"
+    },
+    "foundry": {
+      "source": "horizon-foundry/foundry",
+      "sourceType": "github",
+      "skillPath": "skills/foundry/SKILL.md",
+      "computedHash": "bd8d85e6f533e93191f7c6cd17664c88c57443a4bf154759974f850ed3f29b50"
+    },
+    "frame": {
+      "source": "horizon-foundry/foundry",
+      "sourceType": "github",
+      "skillPath": "skills/frame/SKILL.md",
+      "computedHash": "01ed46710ce481f0977b22811ee8358b10796120318522d413214921bd9e451d"
+    },
+    "instrumentation": {
+      "source": "horizon-foundry/foundry",
+      "sourceType": "github",
+      "skillPath": "skills/instrumentation/SKILL.md",
+      "computedHash": "2f26c6f93ccf957be7aa8d6f904f2f09c6b13dcc0e9c06165e7bffadea318a1c"
+    },
+    "mobile": {
+      "source": "horizon-foundry/foundry",
+      "sourceType": "github",
+      "skillPath": "skills/mobile/SKILL.md",
+      "computedHash": "cc8b036ca4c893fb410bb3f437b23d3c8dbacaea02ae168855dda23174d59566"
+    },
+    "phase-plan": {
+      "source": "horizon-foundry/foundry",
+      "sourceType": "github",
+      "skillPath": "skills/phase-plan/SKILL.md",
+      "computedHash": "e504c169b2175e6317368f7f973817ad8f5cb098ffd6d8bbcf1dc5a58b489e44"
+    },
+    "production-audit": {
+      "source": "horizon-foundry/foundry",
+      "sourceType": "github",
+      "skillPath": "skills/production-audit/SKILL.md",
+      "computedHash": "e3a316395ba80c9d71a491adb901edfc579df5b8d31369d9befdba19f7019057"
+    },
+    "readout": {
+      "source": "horizon-foundry/foundry",
+      "sourceType": "github",
+      "skillPath": "skills/readout/SKILL.md",
+      "computedHash": "a3e1085dd81fbe9f2d3215c423791d919fe3818144ce75f9c51f571d3461a814"
+    },
+    "scaffold": {
+      "source": "horizon-foundry/foundry",
+      "sourceType": "github",
+      "skillPath": "skills/scaffold/SKILL.md",
+      "computedHash": "d0d4fe232bff65cbab0479cf933f79fb9b27f636ab9f537c4cbf2f6239d987ee"
+    }
+  }
+}

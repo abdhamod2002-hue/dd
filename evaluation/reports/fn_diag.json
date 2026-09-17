@@ -1,0 +1,483 @@
+{
+  "IMG_5290.MOV": {
+    "n_conf": 0,
+    "reasons": {
+      "NO_RELEASE_TRANSITION": 3,
+      "NOT_ENOUGH_CARRIED_FRAMES": 2
+    },
+    "rej": [
+      {
+        "r": "NO_RELEASE_TRANSITION",
+        "fr": {
+          "carry_start": 414,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "c": 6,
+        "loc": "LOCATION_AMBIGUOUS",
+        "gnd": 0,
+        "sep": 0.0,
+        "sep_fr": 0,
+        "aidm": true,
+        "wd": 0.2165,
+        "eos": false
+      },
+      {
+        "r": "NO_RELEASE_TRANSITION",
+        "fr": {
+          "carry_start": 466,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "c": 6,
+        "loc": "LOCATION_AMBIGUOUS",
+        "gnd": 0,
+        "sep": 0.0,
+        "sep_fr": 0,
+        "aidm": true,
+        "wd": 0.207,
+        "eos": false
+      },
+      {
+        "r": "NO_RELEASE_TRANSITION",
+        "fr": {
+          "carry_start": 490,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "c": 4,
+        "loc": "LOCATION_AMBIGUOUS",
+        "gnd": 0,
+        "sep": 0.0,
+        "sep_fr": 0,
+        "aidm": true,
+        "wd": 0.1166,
+        "eos": false
+      },
+      {
+        "r": "NOT_ENOUGH_CARRIED_FRAMES",
+        "fr": {
+          "carry_start": 506,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "c": 2,
+        "loc": "LOCATION_AMBIGUOUS",
+        "gnd": 0,
+        "sep": 0.0,
+        "sep_fr": 0,
+        "aidm": true,
+        "wd": 0.0967,
+        "eos": false
+      },
+      {
+        "r": "NOT_ENOUGH_CARRIED_FRAMES",
+        "fr": {
+          "carry_start": 522,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "c": 2,
+        "loc": "LOCATION_AMBIGUOUS",
+        "gnd": 0,
+        "sep": 0.0,
+        "sep_fr": 0,
+        "aidm": true,
+        "wd": 0.207,
+        "eos": false
+      }
+    ],
+    "conf": []
+  },
+  "IMG_5295.MOV": {
+    "n_conf": 0,
+    "reasons": {
+      "NOT_ENOUGH_CARRIED_FRAMES": 3
+    },
+    "rej": [
+      {
+        "r": "NOT_ENOUGH_CARRIED_FRAMES",
+        "fr": {
+          "carry_start": 666,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "c": 2,
+        "loc": "LOCATION_AMBIGUOUS",
+        "gnd": 0,
+        "sep": 0.0,
+        "sep_fr": 0,
+        "aidm": true,
+        "wd": 0.4417,
+        "eos": false
+      },
+      {
+        "r": "NOT_ENOUGH_CARRIED_FRAMES",
+        "fr": {
+          "carry_start": 670,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "c": 1,
+        "loc": "LOCATION_AMBIGUOUS",
+        "gnd": 0,
+        "sep": 0.0,
+        "sep_fr": 0,
+        "aidm": true,
+        "wd": 0.3437,
+        "eos": false
+      },
+      {
+        "r": "NOT_ENOUGH_CARRIED_FRAMES",
+        "fr": {
+          "carry_start": 650,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "c": 1,
+        "loc": "LOCATION_AMBIGUOUS",
+        "gnd": 0,
+        "sep": 0.0,
+        "sep_fr": 0,
+        "aidm": true,
+        "wd": 0.0823,
+        "eos": false
+      }
+    ],
+    "conf": []
+  },
+  "IMG_5118.MOV": {
+    "n_conf": 0,
+    "reasons": {
+      "NOT_ENOUGH_CARRIED_FRAMES": 2
+    },
+    "rej": [
+      {
+        "r": "NOT_ENOUGH_CARRIED_FRAMES",
+        "fr": {
+          "carry_start": 146,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "c": 1,
+        "loc": "LOCATION_AMBIGUOUS",
+        "gnd": 0,
+        "sep": 0.0,
+        "sep_fr": 0,
+        "aidm": true,
+        "wd": 0.1494,
+        "eos": false
+      },
+      {
+        "r": "NOT_ENOUGH_CARRIED_FRAMES",
+        "fr": {
+          "carry_start": 214,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "c": 2,
+        "loc": "LOCATION_AMBIGUOUS",
+        "gnd": 0,
+        "sep": 0.0,
+        "sep_fr": 0,
+        "aidm": true,
+        "wd": 0.1497,
+        "eos": false
+      }
+    ],
+    "conf": []
+  },
+  "A.MOV": {
+    "n_conf": 0,
+    "reasons": {
+      "NO_RELEASE_TRANSITION": 3,
+      "NOT_ENOUGH_CARRIED_FRAMES": 3
+    },
+    "rej": [
+      {
+        "r": "NO_RELEASE_TRANSITION",
+        "fr": {
+          "carry_start": 586,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "c": 3,
+        "loc": "LOCATION_AMBIGUOUS",
+        "gnd": 0,
+        "sep": 0.0,
+        "sep_fr": 0,
+        "aidm": true,
+        "wd": 0.6665,
+        "eos": false
+      },
+      {
+        "r": "NOT_ENOUGH_CARRIED_FRAMES",
+        "fr": {
+          "carry_start": 622,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "c": 1,
+        "loc": "LOCATION_AMBIGUOUS",
+        "gnd": 0,
+        "sep": 0.0,
+        "sep_fr": 0,
+        "aidm": true,
+        "wd": 0.6665,
+        "eos": false
+      },
+      {
+        "r": "NO_RELEASE_TRANSITION",
+        "fr": {
+          "carry_start": 586,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "c": 3,
+        "loc": "LOCATION_AMBIGUOUS",
+        "gnd": 0,
+        "sep": 0.0,
+        "sep_fr": 0,
+        "aidm": true,
+        "wd": 0.3195,
+        "eos": false
+      },
+      {
+        "r": "NOT_ENOUGH_CARRIED_FRAMES",
+        "fr": {
+          "carry_start": 674,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "c": 2,
+        "loc": "LOCATION_AMBIGUOUS",
+        "gnd": 0,
+        "sep": 0.0,
+        "sep_fr": 0,
+        "aidm": true,
+        "wd": 0.2989,
+        "eos": false
+      },
+      {
+        "r": "NO_RELEASE_TRANSITION",
+        "fr": {
+          "carry_start": 630,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "c": 6,
+        "loc": "LOCATION_AMBIGUOUS",
+        "gnd": 0,
+        "sep": 0.0,
+        "sep_fr": 0,
+        "aidm": true,
+        "wd": 0.3239,
+        "eos": false
+      },
+      {
+        "r": "NOT_ENOUGH_CARRIED_FRAMES",
+        "fr": {
+          "carry_start": 674,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "c": 2,
+        "loc": "LOCATION_AMBIGUOUS",
+        "gnd": 0,
+        "sep": 0.0,
+        "sep_fr": 0,
+        "aidm": false,
+        "wd": 0.2172,
+        "eos": false
+      }
+    ],
+    "conf": []
+  },
+  "IMG_5306.MOV": {
+    "n_conf": 0,
+    "reasons": {
+      "NOT_ENOUGH_CARRIED_FRAMES": 3,
+      "NO_PHYSICAL_SEPARATION": 2,
+      "NO_RELEASE_TRANSITION": 5
+    },
+    "rej": [
+      {
+        "r": "NOT_ENOUGH_CARRIED_FRAMES",
+        "fr": {
+          "carry_start": 30,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "c": 2,
+        "loc": "LOCATION_AMBIGUOUS",
+        "gnd": 0,
+        "sep": 0.0,
+        "sep_fr": 0,
+        "aidm": true,
+        "wd": 0.2059,
+        "eos": false
+      },
+      {
+        "r": "NOT_ENOUGH_CARRIED_FRAMES",
+        "fr": {
+          "carry_start": 42,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "c": 1,
+        "loc": "LOCATION_AMBIGUOUS",
+        "gnd": 0,
+        "sep": 0.0,
+        "sep_fr": 0,
+        "aidm": true,
+        "wd": 0.2236,
+        "eos": false
+      },
+      {
+        "r": "NO_PHYSICAL_SEPARATION",
+        "fr": {
+          "carry_start": 1998,
+          "release": 2042,
+          "ground": 2078,
+          "departure": 2098,
+          "confirmed": null
+        },
+        "c": 5,
+        "loc": "GROUND_CONFIRMED",
+        "gnd": 1,
+        "sep": 0.4568,
+        "sep_fr": 1,
+        "aidm": true,
+        "wd": 0.3937,
+        "eos": false
+      },
+      {
+        "r": "NO_PHYSICAL_SEPARATION",
+        "fr": {
+          "carry_start": 1986,
+          "release": 2042,
+          "ground": 2062,
+          "departure": 2094,
+          "confirmed": null
+        },
+        "c": 4,
+        "loc": "GROUND_CONFIRMED",
+        "gnd": 2,
+        "sep": 0.4671,
+        "sep_fr": 1,
+        "aidm": true,
+        "wd": 0.3937,
+        "eos": false
+      },
+      {
+        "r": "NO_RELEASE_TRANSITION",
+        "fr": {
+          "carry_start": 3062,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "c": 4,
+        "loc": "LOCATION_AMBIGUOUS",
+        "gnd": 0,
+        "sep": 0.0,
+        "sep_fr": 0,
+        "aidm": true,
+        "wd": 0.3001,
+        "eos": false
+      },
+      {
+        "r": "NO_RELEASE_TRANSITION",
+        "fr": {
+          "carry_start": 3054,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "c": 5,
+        "loc": "LOCATION_AMBIGUOUS",
+        "gnd": 0,
+        "sep": 0.0,
+        "sep_fr": 0,
+        "aidm": true,
+        "wd": 0.3899,
+        "eos": false
+      },
+      {
+        "r": "NO_RELEASE_TRANSITION",
+        "fr": {
+          "carry_start": 3182,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "c": 7,
+        "loc": "LOCATION_AMBIGUOUS",
+        "gnd": 0,
+        "sep": 0.0,
+        "sep_fr": 0,
+        "aidm": true,
+        "wd": 0.5434,
+        "eos": false
+      },
+      {
+        "r": "NO_RELEASE_TRANSITION",
+        "fr": {
+          "carry_start": 3158,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "c": 5,
+        "loc": "LOCATION_AMBIGUOUS",
+        "gnd": 0,
+        "sep": 0.0,
+        "sep_fr": 0,
+        "aidm": true,
+        "wd": 0.2595,
+        "eos": false
+      }
+    ],
+    "conf": []
+  }
+}

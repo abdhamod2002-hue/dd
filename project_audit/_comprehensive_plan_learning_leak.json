@@ -1,0 +1,74 @@
+{
+  "learning_path": "D:\\HO\\learning\\learning.json",
+  "sha256_before": "7707e748b36a1453afceb58ea4653a975ad64671c8010e05414592b479c65c17",
+  "videos_analyzed": 95,
+  "adjusted_thresholds_before": {
+    "release_distance_ratio": 0.12,
+    "release_distance_floor": 0.1,
+    "release_window_frames": 8,
+    "feet_release_frames": 2,
+    "max_pair_age_frames": 90,
+    "min_carried_frames": 3,
+    "smoothing_window": 3,
+    "departure_motion_ratio": 0.45,
+    "departure_distance_ratio": 0.85,
+    "min_abandonment_frames": 5,
+    "max_fallback_tracker_gap_frames": 45
+  },
+  "runs": [
+    {
+      "i": 0,
+      "min_carried_frames": 3,
+      "release_distance_ratio": 0.12,
+      "departure_motion_ratio": 0.45,
+      "freeze_learning_writes": true,
+      "sha256_after_construct": "7707e748b36a1453afceb58ea4653a975ad64671c8010e05414592b479c65c17",
+      "sha256_after_finalize": "7707e748b36a1453afceb58ea4653a975ad64671c8010e05414592b479c65c17"
+    },
+    {
+      "i": 1,
+      "min_carried_frames": 3,
+      "release_distance_ratio": 0.12,
+      "departure_motion_ratio": 0.45,
+      "freeze_learning_writes": true,
+      "sha256_after_construct": "7707e748b36a1453afceb58ea4653a975ad64671c8010e05414592b479c65c17",
+      "sha256_after_finalize": "7707e748b36a1453afceb58ea4653a975ad64671c8010e05414592b479c65c17"
+    },
+    {
+      "i": 2,
+      "min_carried_frames": 3,
+      "release_distance_ratio": 0.12,
+      "departure_motion_ratio": 0.45,
+      "freeze_learning_writes": true,
+      "sha256_after_construct": "7707e748b36a1453afceb58ea4653a975ad64671c8010e05414592b479c65c17",
+      "sha256_after_finalize": "7707e748b36a1453afceb58ea4653a975ad64671c8010e05414592b479c65c17"
+    }
+  ],
+  "after_manual_edit": {
+    "sha256": "31a19898095458bb7b01b5b412c50938ff009547671fb601efde5ebef0cca9e7",
+    "step_index_before": {
+      "NO_RELEASE_TRANSITION": 3,
+      "PERSON_NOT_DETECTED": 2,
+      "NOT_ENOUGH_CARRIED_FRAMES": 3,
+      "PERSON_DID_NOT_DEPART": 3,
+      "BAG_NOT_DETECTED": 2
+    },
+    "step_index_edited": {
+      "NO_RELEASE_TRANSITION": 0,
+      "PERSON_NOT_DETECTED": 2,
+      "NOT_ENOUGH_CARRIED_FRAMES": 0,
+      "PERSON_DID_NOT_DEPART": 3,
+      "BAG_NOT_DETECTED": 2
+    },
+    "min_carried_frames": 6,
+    "release_distance_ratio": 0.35,
+    "yaml_min_carried_frames": 6,
+    "yaml_release_distance_ratio": 0.35,
+    "read_leak_proven": true,
+    "note": "Editing step_index changes tier-0 thresholds on the next AdaptiveEventDetector construction even with deterministic=True / freeze_learning_writes=True. adjusted_thresholds is a derived cache."
+  },
+  "sha256_after_restore": "7707e748b36a1453afceb58ea4653a975ad64671c8010e05414592b479c65c17",
+  "restored_ok": true,
+  "writes_frozen_across_3x": true,
+  "thresholds_stable_across_3x": true
+}

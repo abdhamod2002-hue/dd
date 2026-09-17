@@ -1,0 +1,46 @@
+{
+  "video": "/data/22/IMG_5305.MOV",
+  "frames": 2440,
+  "n_conf": 2,
+  "reasons": {},
+  "cfg_sep": 0.2,
+  "cfg_carry": 3,
+  "sep_latches": 1,
+  "carried_high_wd_ticks": 0,
+  "latch_samples": [
+    {
+      "f": 2166,
+      "t": 72.17,
+      "wd": 0.2576,
+      "st": "VIOLATION_CONFIRMED",
+      "c": 17,
+      "att": true,
+      "rel": 2102
+    }
+  ],
+  "conf": [
+    {
+      "reason": "VIOLATION_CONFIRMED",
+      "ts": {
+        "carry_start": 67.76666666666667,
+        "release": 70.03333333333333,
+        "ground": 70.7,
+        "departure": 71.23333333333333,
+        "confirmed": 71.23333333333333
+      },
+      "loc": "GROUND_CONFIRMED"
+    },
+    {
+      "reason": "VIOLATION_CONFIRMED",
+      "ts": {
+        "carry_start": 72.03333333333333,
+        "release": 72.56666666666666,
+        "ground": 72.83333333333333,
+        "departure": 73.36666666666666,
+        "confirmed": 72.3
+      },
+      "loc": "GROUND_CONFIRMED"
+    }
+  ],
+  "rej": []
+}

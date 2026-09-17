@@ -1,0 +1,495 @@
+﻿
+VIDEO: B:\HO\backend\uploaded_videos\20260821_180002_WhatsApp Video 2026-08-21 at 5.15.03 PM.mp4
+total_frames=379 fps=59.97 duration=6.32 464x832
+System.Management.Automation.RemoteException
+System.Management.Automation.RemoteException
+System.Management.Automation.RemoteException
+YOLO litter_classes: ['bottle', 'juice-cup', 'nescafe', 'plate', 'tissue']
+YOLO person model names: person at 0 = person
+litter model names: {0: 'bottle', 1: 'juice-cup', 2: 'nescafe', 3: 'plate', 4: 'tissue'}
+MoveNet loaded_from=cache
+AssociationConfig: litter_candidate_classes=('plastic bottle', 'bottle', 'cup', 'can', 'tissue paper', 'paper', 
+'wrapper', 'trash', 'garbage bag', 'cardboard', 'nescafe', 'plate', 'tissue')
+  bind_radius=60.0 torso_radius=110.0 min_persistence=3
+  frame_height=480.0 ground_band_ratio=0.6
+
+--- FRAME 0 ts=1787325865.18 ---
+ tracked raw: 1
+  raw 1:person conf=0.80 bbox=(358, 125, 464, 817) centroid=(411, 471) is_person=True
+ persons Track: 1
+  P1 centroid=(411, 471) bbox=(358, 125, 464, 817) lw=(407.097595512867, 295.65794610977173) rw=(406.0104666352272, 
+456.40749299526215) tc=(416.02349627017975, 238.8859485387802)
+ objects Track: 0
+
+--- FRAME 1 ts=1787325865.20 ---
+ tracked raw: 1
+  raw 1:person conf=0.80 bbox=(357, 125, 463, 816) centroid=(410, 471) is_person=True
+ persons Track: 1
+  P1 centroid=(410, 471) bbox=(357, 125, 463, 816) lw=(406.387921333313, 297.4935400336981) rw=None 
+tc=(415.2698450088501, 237.24293690174818)
+ objects Track: 0
+
+--- FRAME 2 ts=1787325865.21 ---
+ tracked raw: 1
+  raw 1:person conf=0.80 bbox=(358, 125, 463, 815) centroid=(410, 470) is_person=True
+ persons Track: 1
+  P1 centroid=(410, 470) bbox=(358, 125, 463, 815) lw=(406.358758687973, 296.279169768095) rw=(405.6024141907692, 
+453.9567708969116) tc=(415.5655698776245, 240.63993245363235)
+ objects Track: 0
+
+--- FRAME 3 ts=1787325865.23 ---
+ tracked raw: 1
+  raw 1:person conf=0.81 bbox=(357, 125, 463, 815) centroid=(410, 470) is_person=True
+ persons Track: 1
+  P1 centroid=(410, 470) bbox=(357, 125, 463, 815) lw=(406.3345650434494, 298.60772013664246) rw=(405.00182032585144, 
+452.9674559831619) tc=(415.50152945518494, 237.17481635510921)
+ objects Track: 0
+
+--- FRAME 4 ts=1787325865.25 ---
+ tracked raw: 1
+  raw 1:person conf=0.81 bbox=(357, 125, 463, 814) centroid=(410, 469) is_person=True
+ persons Track: 1
+  P1 centroid=(410, 469) bbox=(357, 125, 463, 814) lw=(405.8267768025398, 298.40652522444725) rw=None 
+tc=(415.50411355495453, 237.06661766022444)
+ objects Track: 0
+
+--- FRAME 5 ts=1787325865.26 ---
+ tracked raw: 1
+  raw 1:person conf=0.81 bbox=(357, 125, 463, 814) centroid=(410, 469) is_person=True
+ persons Track: 1
+  P1 centroid=(410, 469) bbox=(357, 125, 463, 814) lw=(405.8108330965042, 298.0288470387459) rw=None 
+tc=(415.4762033820152, 237.88527973741293)
+ objects Track: 0
+
+--- FRAME 6 ts=1787325865.28 ---
+ tracked raw: 1
+  raw 1:person conf=0.81 bbox=(357, 125, 462, 813) centroid=(410, 469) is_person=True
+ persons Track: 1
+  P1 centroid=(410, 469) bbox=(357, 125, 462, 813) lw=(405.83382484316826, 298.16325330734253) rw=(404.50359892845154, 
+451.66448497772217) tc=(414.66200065612793, 239.24158120155334)
+ objects Track: 0
+
+--- FRAME 7 ts=1787325865.30 ---
+ tracked raw: 1
+  raw 1:person conf=0.81 bbox=(356, 125, 462, 813) centroid=(409, 469) is_person=True
+ persons Track: 1
+  P1 centroid=(409, 469) bbox=(356, 125, 462, 813) lw=(405.66642916202545, 298.0805606842041) rw=None 
+tc=(414.7409946322441, 239.42320561408997)
+ objects Track: 0
+
+--- FRAME 8 ts=1787325865.31 ---
+ tracked raw: 1
+  raw 1:person conf=0.81 bbox=(355, 125, 462, 815) centroid=(408, 470) is_person=True
+ persons Track: 1
+  P1 centroid=(408, 470) bbox=(355, 125, 462, 815) lw=(405.11124578118324, 297.4979127943516) rw=(403.4821746945381, 
+451.8662750720978) tc=(413.9988152682781, 240.6944414228201)
+ objects Track: 0
+
+--- FRAME 9 ts=1787325865.33 ---
+ tracked raw: 1
+  raw 1:person conf=0.81 bbox=(355, 125, 462, 815) centroid=(408, 470) is_person=True
+ persons Track: 1
+  P1 centroid=(408, 470) bbox=(355, 125, 462, 815) lw=(405.0126306414604, 297.3890593647957) rw=(404.51508417725563, 
+437.6753330230713) tc=(414.0999400317669, 240.82190491259098)
+ objects Track: 0
+
+--- FRAME 10 ts=1787325865.35 ---
+ tracked raw: 1
+  raw 1:person conf=0.81 bbox=(353, 119, 462, 824) centroid=(408, 472) is_person=True
+ persons Track: 1
+  P1 centroid=(408, 472) bbox=(353, 119, 462, 824) lw=(403.7814404666424, 298.3273650109768) rw=None 
+tc=(413.3468518257141, 239.60327988117933)
+ objects Track: 0
+
+--- FRAME 11 ts=1787325865.36 ---
+ tracked raw: 1
+  raw 1:person conf=0.81 bbox=(352, 117, 462, 828) centroid=(407, 472) is_person=True
+ persons Track: 1
+  P1 centroid=(407, 472) bbox=(352, 117, 462, 828) lw=(403.6699284315109, 298.7793860435486) rw=None 
+tc=(412.9985649585724, 239.0809148401022)
+ objects Track: 0
+
+--- FRAME 12 ts=1787325865.38 ---
+ tracked raw: 1
+  raw 1:person conf=0.82 bbox=(351, 116, 462, 828) centroid=(406, 472) is_person=True
+ persons Track: 1
+  P1 centroid=(406, 472) bbox=(351, 116, 462, 828) lw=(403.265113145113, 299.78464436531067) rw=None 
+tc=(412.4341296851635, 241.21482574939728)
+ objects Track: 0
+
+--- FRAME 13 ts=1787325865.40 ---
+ tracked raw: 1
+  raw 1:person conf=0.80 bbox=(350, 116, 462, 828) centroid=(406, 472) is_person=True
+ persons Track: 1
+  P1 centroid=(406, 472) bbox=(350, 116, 462, 828) lw=(402.2968645095825, 298.30725383758545) rw=None 
+tc=(411.7877826690674, 238.1768970489502)
+ objects Track: 0
+
+--- FRAME 14 ts=1787325865.41 ---
+ tracked raw: 1
+  raw 1:person conf=0.80 bbox=(350, 122, 460, 820) centroid=(405, 471) is_person=True
+ persons Track: 1
+  P1 centroid=(405, 471) bbox=(350, 122, 460, 820) lw=(401.11071050167084, 298.61937230825424) rw=None 
+tc=(410.7907596230507, 239.73416569828987)
+ objects Track: 0
+
+--- FRAME 15 ts=1787325865.43 ---
+ tracked raw: 1
+  raw 1:person conf=0.81 bbox=(348, 123, 460, 826) centroid=(404, 474) is_person=True
+ persons Track: 1
+  P1 centroid=(404, 474) bbox=(348, 123, 460, 826) lw=(399.72203493118286, 299.13378101587296) rw=None 
+tc=(409.98424911499023, 238.40115282684565)
+ objects Track: 0
+
+--- FRAME 16 ts=1787325865.45 ---
+ tracked raw: 1
+  raw 1:person conf=0.82 bbox=(347, 124, 459, 829) centroid=(403, 477) is_person=True
+ persons Track: 1
+  P1 centroid=(403, 477) bbox=(347, 124, 459, 829) lw=(398.6828284263611, 298.1333148628473) rw=None 
+tc=(408.76041889190674, 239.38053445518017)
+ objects Track: 0
+
+--- FRAME 17 ts=1787325865.46 ---
+ tracked raw: 1
+  raw 1:person conf=0.84 bbox=(345, 117, 460, 829) centroid=(403, 473) is_person=True
+ persons Track: 1
+  P1 centroid=(403, 473) bbox=(345, 117, 460, 829) lw=(399.45248782634735, 297.5424909591675) rw=(398.2960970699787, 
+420.6214609146118) tc=(408.04704546928406, 240.75792241096497)
+ objects Track: 0
+
+--- FRAME 18 ts=1787325865.48 ---
+ tracked raw: 1
+  raw 1:person conf=0.85 bbox=(344, 116, 459, 829) centroid=(401, 472) is_person=True
+ persons Track: 1
+  P1 centroid=(401, 472) bbox=(344, 116, 459, 829) lw=(398.59725216031075, 301.3350939452648) rw=None 
+tc=(407.36207643151283, 239.33714332431555)
+ objects Track: 0
+
+--- FRAME 19 ts=1787325865.50 ---
+ tracked raw: 1
+  raw 1:person conf=0.85 bbox=(343, 121, 458, 829) centroid=(401, 475) is_person=True
+ persons Track: 1
+  P1 centroid=(401, 475) bbox=(343, 121, 458, 829) lw=(396.7117663025856, 298.6860890388489) rw=None 
+tc=(406.2764256000519, 239.4747439622879)
+ objects Track: 0
+
+--- FRAME 20 ts=1787325865.51 ---
+ tracked raw: 1
+  raw 1:person conf=0.85 bbox=(343, 124, 459, 829) centroid=(401, 476) is_person=True
+ persons Track: 1
+  P1 centroid=(401, 476) bbox=(343, 124, 459, 829) lw=(396.60367250442505, 298.58689250051975) rw=(393.49869179725647, 
+438.8573422431946) tc=(405.95895862579346, 237.08949779719114)
+ objects Track: 0
+
+--- FRAME 21 ts=1787325865.53 ---
+ tracked raw: 1
+  raw 1:person conf=0.85 bbox=(343, 125, 459, 828) centroid=(401, 476) is_person=True
+ persons Track: 1
+  P1 centroid=(401, 476) bbox=(343, 125, 459, 828) lw=(396.62241327762604, 296.97733707726) rw=None 
+tc=(405.99278604984283, 236.15420566499233)
+ objects Track: 0
+
+--- FRAME 22 ts=1787325865.55 ---
+ tracked raw: 1
+  raw 1:person conf=0.86 bbox=(342, 125, 459, 828) centroid=(400, 476) is_person=True
+ persons Track: 1
+  P1 centroid=(400, 476) bbox=(342, 125, 459, 828) lw=(395.89147835969925, 299.40779304504395) rw=None 
+tc=(405.515254765749, 235.296795129776)
+ objects Track: 0
+
+--- FRAME 23 ts=1787325865.56 ---
+ tracked raw: 1
+  raw 1:person conf=0.87 bbox=(341, 125, 459, 828) centroid=(400, 476) is_person=True
+ persons Track: 1
+  P1 centroid=(400, 476) bbox=(341, 125, 459, 828) lw=(395.27352327108383, 299.5507105141878) rw=(392.19768542051315, 
+436.24215081334114) tc=(404.5705860853195, 235.91148271411657)
+ objects Track: 0
+
+--- FRAME 24 ts=1787325865.58 ---
+ tracked raw: 1
+  raw 1:person conf=0.88 bbox=(340, 125, 459, 827) centroid=(399, 476) is_person=True
+ persons Track: 1
+  P1 centroid=(399, 476) bbox=(340, 125, 459, 827) lw=(394.87540900707245, 298.86785113811493) rw=None 
+tc=(404.3096390366554, 237.45572920143604)
+ objects Track: 0
+
+--- FRAME 25 ts=1787325865.60 ---
+ tracked raw: 1
+  raw 1:person conf=0.89 bbox=(338, 125, 458, 828) centroid=(398, 477) is_person=True
+ persons Track: 1
+  P1 centroid=(398, 477) bbox=(338, 125, 458, 828) lw=(393.5940818786621, 295.2170522660017) rw=(389.98633551597595, 
+436.3226865828037) tc=(402.7105634212494, 237.9356353059411)
+ objects Track: 0
+
+--- FRAME 26 ts=1787325865.61 ---
+ tracked raw: 1
+  raw 1:person conf=0.89 bbox=(337, 126, 458, 827) centroid=(397, 477) is_person=True
+ persons Track: 1
+  P1 centroid=(397, 477) bbox=(337, 126, 458, 827) lw=(393.54398488998413, 298.5361826121807) rw=(389.51351141929626, 
+438.29908379912376) tc=(402.2717611193657, 238.45502101629972)
+ objects Track: 0
+
+--- FRAME 27 ts=1787325865.63 ---
+ tracked raw: 1
+  raw 1:person conf=0.90 bbox=(335, 126, 457, 827) centroid=(396, 476) is_person=True
+ persons Track: 1
+  P1 centroid=(396, 476) bbox=(335, 126, 457, 827) lw=(391.9080714583397, 297.39346328377724) rw=(388.0269150733948, 
+438.26628425717354) tc=(400.82366824150085, 241.43338655680418)
+ objects Track: 0
+
+--- FRAME 28 ts=1787325865.65 ---
+ tracked raw: 1
+  raw 1:person conf=0.90 bbox=(333, 127, 457, 827) centroid=(395, 477) is_person=True
+ persons Track: 1
+  P1 centroid=(395, 477) bbox=(333, 127, 457, 827) lw=(391.12192165851593, 302.53184628486633) rw=None 
+tc=(399.6079150438309, 242.2282454073429)
+ objects Track: 0
+
+--- FRAME 29 ts=1787325865.66 ---
+ tracked raw: 1
+  raw 1:person conf=0.89 bbox=(331, 128, 456, 826) centroid=(394, 477) is_person=True
+ persons Track: 1
+  P1 centroid=(394, 477) bbox=(331, 128, 456, 826) lw=(389.68450552225113, 303.8055764436722) rw=(385.2498379945755, 
+438.7372201681137) tc=(397.89981557428837, 242.5470100492239)
+ objects Track: 0
+
+--- FRAME 30 ts=1787325865.68 ---
+ tracked raw: 1
+  raw 1:person conf=0.89 bbox=(330, 129, 456, 827) centroid=(393, 478) is_person=True
+ persons Track: 1
+  P1 centroid=(393, 478) bbox=(330, 129, 456, 827) lw=(388.34634751081467, 302.5363359749317) rw=(384.23187375068665, 
+441.14765959978104) tc=(397.29812783002853, 243.82476383447647)
+ objects Track: 0
+
+--- FRAME 31 ts=1787325865.70 ---
+ tracked raw: 1
+  raw 1:person conf=0.89 bbox=(330, 131, 456, 823) centroid=(393, 477) is_person=True
+ persons Track: 1
+  P1 centroid=(393, 477) bbox=(330, 131, 456, 823) lw=(388.18669974803925, 304.85951340198517) rw=(384.4424443244934, 
+440.17701625823975) tc=(397.20672512054443, 242.9214849472046)
+ objects Track: 0
+
+--- FRAME 32 ts=1787325865.71 ---
+ tracked raw: 1
+  raw 1:person conf=0.88 bbox=(329, 131, 456, 822) centroid=(393, 477) is_person=True
+ persons Track: 1
+  P1 centroid=(393, 477) bbox=(329, 131, 456, 822) lw=(388.3189514577389, 307.56715232133865) rw=None 
+tc=(396.92891941964626, 241.07329300045967)
+ objects Track: 0
+
+--- FRAME 33 ts=1787325865.73 ---
+ tracked raw: 1
+  raw 1:person conf=0.88 bbox=(328, 132, 456, 821) centroid=(392, 477) is_person=True
+ persons Track: 1
+  P1 centroid=(392, 477) bbox=(328, 132, 456, 821) lw=(386.85952377319336, 307.18232932686806) rw=None 
+tc=(396.15552520751953, 240.9987857863307)
+ objects Track: 0
+
+--- FRAME 34 ts=1787325865.75 ---
+ tracked raw: 1
+  raw 1:person conf=0.88 bbox=(327, 134, 456, 823) centroid=(391, 478) is_person=True
+ persons Track: 1
+  P1 centroid=(391, 478) bbox=(327, 134, 456, 823) lw=(385.64547300338745, 308.2782671749592) rw=(384.60357517004013, 
+425.3337820470333) tc=(395.508536696434, 241.05502546578646)
+ objects Track: 0
+
+--- FRAME 35 ts=1787325865.76 ---
+ tracked raw: 1
+  raw 1:person conf=0.89 bbox=(325, 134, 456, 823) centroid=(390, 479) is_person=True
+ persons Track: 1
+  P1 centroid=(390, 479) bbox=(325, 134, 456, 823) lw=(383.70375096797943, 306.47587180137634) rw=(380.3874720931053, 
+440.4145851433277) tc=(394.265170827508, 241.33055056259036)
+ objects Track: 0
+
+--- FRAME 36 ts=1787325865.78 ---
+ tracked raw: 1
+  raw 1:person conf=0.89 bbox=(324, 135, 456, 824) centroid=(390, 480) is_person=True
+ persons Track: 1
+  P1 centroid=(390, 480) bbox=(324, 135, 456, 824) lw=(383.1991685628891, 308.2072241604328) rw=None 
+tc=(394.00262010097504, 242.99271684885025)
+ objects Track: 0
+
+--- FRAME 37 ts=1787325865.80 ---
+ tracked raw: 1
+  raw 1:person conf=0.90 bbox=(322, 137, 456, 826) centroid=(389, 481) is_person=True
+ persons Track: 1
+  P1 centroid=(389, 481) bbox=(322, 137, 456, 826) lw=(381.8823370337486, 308.678236335516) rw=(381.280554831028, 
+427.0205839276314) tc=(392.48877131938934, 246.1291240826249)
+ objects Track: 0
+
+--- FRAME 38 ts=1787325865.81 ---
+ tracked raw: 1
+  raw 1:person conf=0.91 bbox=(320, 139, 455, 827) centroid=(388, 483) is_person=True
+ persons Track: 1
+  P1 centroid=(388, 483) bbox=(320, 139, 455, 827) lw=(381.1102981865406, 312.3375782966614) rw=(379.56186160445213, 
+430.0604615211487) tc=(390.42822793126106, 251.20866107940674)
+ objects Track: 0
+
+--- FRAME 39 ts=1787325865.83 ---
+ tracked raw: 1
+  raw 1:person conf=0.91 bbox=(317, 140, 454, 828) centroid=(385, 484) is_person=True
+ persons Track: 1
+  P1 centroid=(385, 484) bbox=(317, 140, 454, 828) lw=(379.44573053717613, 314.85372591018677) rw=(377.2177923321724, 
+430.227445602417) tc=(388.4707863777876, 250.2481713294983)
+ objects Track: 0
+
+--- FRAME 40 ts=1787325865.85 ---
+ tracked raw: 1
+  raw 1:person conf=0.91 bbox=(313, 142, 453, 829) centroid=(383, 485) is_person=True
+ persons Track: 1
+  P1 centroid=(383, 485) bbox=(313, 142, 453, 829) lw=(375.51862466335297, 311.23162277042866) rw=(371.51798236370087, 
+446.997804492712) tc=(386.36690574884415, 250.2329699024558)
+ objects Track: 0
+
+--- FRAME 60 ts=1787325866.18 ---
+ tracked raw: 1
+  raw 1:person conf=0.91 bbox=(249, 185, 445, 827) centroid=(347, 506) is_person=True
+ persons Track: 1
+  P1 centroid=(347, 506) bbox=(249, 185, 445, 827) lw=(337.41190671920776, 323.59218990802765) rw=(324.90428400039673, 
+488.74394178390503) tc=(342.8573993444443, 269.69485380500555)
+ objects Track: 0
+
+--- FRAME 80 ts=1787325866.51 ---
+ tracked raw: 1
+  raw 1:person conf=0.90 bbox=(192, 231, 446, 820) centroid=(319, 525) is_person=True
+ persons Track: 1
+  P1 centroid=(319, 525) bbox=(192, 231, 446, 820) lw=(318.9312133193016, 354.49397544562817) rw=(281.98652070760727, 
+528.988701403141) tc=(307.5091081559658, 300.64374438486993)
+ objects Track: 0
+
+--- FRAME 100 ts=1787325866.85 ---
+ tracked raw: 1
+  raw 1:person conf=0.93 bbox=(181, 241, 463, 820) centroid=(322, 531) is_person=True
+ persons Track: 1
+  P1 centroid=(322, 531) bbox=(181, 241, 463, 820) lw=(316.14369666576385, 363.84024669229984) rw=(280.51433700323105, 
+525.4903357625008) tc=(306.46962186694145, 301.66818171180785)
+ objects Track: 0
+
+--- FRAME 120 ts=1787325867.18 ---
+ tracked raw: 1
+  raw 1:person conf=0.91 bbox=(193, 185, 464, 814) centroid=(328, 500) is_person=True
+ persons Track: 1
+  P1 centroid=(328, 500) bbox=(193, 185, 464, 814) lw=(317.7013778090477, 351.4180902838707) rw=(313.75311839580536, 
+460.25978326797485) tc=(320.1438515782356, 266.9028803035617)
+ objects Track: 0
+
+--- FRAME 140 ts=1787325867.51 ---
+ tracked raw: 1
+  raw 1:person conf=0.88 bbox=(212, 150, 444, 810) centroid=(328, 480) is_person=True
+ persons Track: 1
+  P1 centroid=(328, 480) bbox=(212, 150, 444, 810) lw=(310.8242974281311, 316.92074954509735) rw=(313.1069519519806, 
+318.3119362592697) tc=(326.48654341697693, 233.2410742342472)
+ objects Track: 0
+
+--- FRAME 160 ts=1787325867.85 ---
+ tracked raw: 2
+  raw 1:person conf=0.87 bbox=(206, 166, 420, 811) centroid=(313, 489) is_person=True
+  raw 3:person conf=0.62 bbox=(406, 210, 462, 525) centroid=(434, 367) is_person=True
+ persons Track: 2
+  P1 centroid=(313, 489) bbox=(206, 166, 420, 811) lw=(285.6293480396271, 312.4834116399288) rw=None 
+tc=(307.094440728426, 240.5934510976076)
+  P3 centroid=(434, 367) bbox=(406, 210, 462, 525) lw=None rw=None tc=(437.1446063518524, 271.21176950633526)
+ objects Track: 0
+
+--- FRAME 180 ts=1787325868.18 ---
+ tracked raw: 2
+  raw 1:person conf=0.84 bbox=(179, 182, 372, 723) centroid=(276, 452) is_person=True
+  raw 3:person conf=0.48 bbox=(406, 221, 462, 528) centroid=(434, 374) is_person=True
+ persons Track: 2
+  P1 centroid=(276, 452) bbox=(179, 182, 372, 723) lw=(247.76890176534653, 316.17994499206543) rw=None 
+tc=(272.3436042666435, 251.14024685695767)
+  P3 centroid=(434, 374) bbox=(406, 221, 462, 528) lw=None rw=None tc=(437.60604882240295, 272.3219937905669)
+ objects Track: 0
+
+--- FRAME 200 ts=1787325868.51 ---
+ tracked raw: 2
+  raw 1:person conf=0.88 bbox=(136, 177, 300, 709) centroid=(218, 443) is_person=True
+  raw 3:person conf=0.51 bbox=(407, 237, 463, 526) centroid=(435, 382) is_person=True
+ persons Track: 2
+  P1 centroid=(218, 443) bbox=(136, 177, 300, 709) lw=(200.1521919965744, 326.88279962539673) rw=None 
+tc=(222.4426497220993, 265.63920080661774)
+  P3 centroid=(435, 382) bbox=(407, 237, 463, 526) lw=None rw=None tc=(439.0129840373993, 272.28158028423786)
+ objects Track: 0
+
+--- FRAME 220 ts=1787325868.85 ---
+ tracked raw: 2
+  raw 1:person conf=0.88 bbox=(87, 177, 275, 697) centroid=(181, 437) is_person=True
+  raw 3:person conf=0.41 bbox=(409, 248, 464, 525) centroid=(436, 386) is_person=True
+ persons Track: 2
+  P1 centroid=(181, 437) bbox=(87, 177, 275, 697) lw=(153.10996460914612, 329.4781262874603) rw=(186.9987666606903, 
+412.06744146347046) tc=(174.79277420043945, 268.9882979989052)
+  P3 centroid=(436, 386) bbox=(409, 248, 464, 525) lw=None rw=None tc=(440.69321328401566, 277.47706845775247)
+ objects Track: 0
+
+--- FRAME 240 ts=1787325869.18 ---
+ tracked raw: 3
+  raw 1:person conf=0.91 bbox=(38, 186, 190, 685) centroid=(114, 435) is_person=True
+  raw 7:person conf=0.79 bbox=(244, 264, 305, 450) centroid=(274, 357) is_person=True
+  raw 3:person conf=0.51 bbox=(411, 257, 464, 523) centroid=(437, 390) is_person=True
+ persons Track: 3
+  P1 centroid=(114, 435) bbox=(38, 186, 190, 685) lw=(96.20595502853394, 328.0723075270653) rw=(129.3612880706787, 
+421.2149593234062) tc=(115.99888479709625, 270.808686517179)
+  P7 centroid=(274, 357) bbox=(244, 264, 305, 450) lw=(266.95269337296486, 416.8791890144348) rw=None 
+tc=(277.0227930992842, 316.5780734717846)
+  P3 centroid=(437, 390) bbox=(411, 257, 464, 523) lw=None rw=None tc=(442.25386694073677, 272.898277759552)
+ objects Track: 0
+
+--- FRAME 260 ts=1787325869.52 ---
+ tracked raw: 3
+  raw 1:person conf=0.87 bbox=(9, 205, 142, 675) centroid=(75, 440) is_person=True
+  raw 7:person conf=0.76 bbox=(212, 266, 277, 468) centroid=(244, 367) is_person=True
+  raw 3:person conf=0.54 bbox=(415, 256, 464, 523) centroid=(439, 390) is_person=True
+ persons Track: 3
+  P1 centroid=(75, 440) bbox=(9, 205, 142, 675) lw=(59.72787520289421, 341.5946912765503) rw=None 
+tc=(78.39134131371975, 278.7807945534587)
+  P7 centroid=(244, 367) bbox=(212, 266, 277, 468) lw=None rw=None tc=(243.6263410449028, 321.9193956553936)
+  P3 centroid=(439, 390) bbox=(415, 256, 464, 523) lw=None rw=None tc=(443.46811214089394, 272.45398393832147)
+ objects Track: 0
+
+--- FRAME 280 ts=1787325869.85 ---
+ tracked raw: 2
+  raw 1:person conf=0.91 bbox=(0, 209, 111, 651) centroid=(55, 430) is_person=True
+  raw 3:person conf=0.51 bbox=(417, 256, 464, 521) centroid=(440, 389) is_person=True
+ persons Track: 2
+  P1 centroid=(55, 430) bbox=(0, 209, 111, 651) lw=(44.739658802747726, 331.5674958229065) rw=None 
+tc=(55.797928646206856, 281.8547839075327)
+  P3 centroid=(440, 389) bbox=(417, 256, 464, 521) lw=None rw=None tc=None
+ objects Track: 0
+
+--- FRAME 300 ts=1787325870.18 ---
+ tracked raw: 2
+  raw 1:person conf=0.89 bbox=(0, 219, 88, 645) centroid=(44, 432) is_person=True
+  raw 3:person conf=0.43 bbox=(418, 255, 464, 518) centroid=(441, 387) is_person=True
+ persons Track: 2
+  P1 centroid=(44, 432) bbox=(0, 219, 88, 645) lw=(37.144126653671265, 411.0533187389374) rw=(42.2373423576355, 
+404.51620602607727) tc=(40.49937915802002, 289.95161528885365)
+  P3 centroid=(441, 387) bbox=(418, 255, 464, 518) lw=None rw=None tc=None
+ objects Track: 0
+
+--- FRAME 320 ts=1787325870.52 ---
+ tracked raw: 1
+  raw 1:person conf=0.66 bbox=(0, 265, 60, 645) centroid=(30, 455) is_person=True
+ persons Track: 1
+  P1 centroid=(30, 455) bbox=(0, 265, 60, 645) lw=(26.33202373981476, 377.34778344631195) rw=(26.65199875831604, 
+381.8857544660568) tc=(26.873067319393158, 290.7304763421416)
+ objects Track: 0
+
+--- FRAME 340 ts=1787325870.85 ---
+ tracked raw: 1
+  raw 11:person conf=0.42 bbox=(232, 277, 272, 319) centroid=(252, 298) is_person=True
+ persons Track: 1
+  P11 centroid=(252, 298) bbox=(232, 277, 272, 319) lw=None rw=None tc=None
+ objects Track: 0
+
+--- FRAME 360 ts=1787325871.18 ---
+ tracked raw: 0
+ persons Track: 0
+ objects Track: 0
+
+=== SUMMARY ===
+persons distinct: {1, 3, 7, 10, 11}
+objects distinct: {(10002, 'juice-cup')}
+pairs ever: []
+avg yolo 159.3ms movenet 74.9ms assoc 0.0ms total 234.2ms fps 4.3
+
+

@@ -1,0 +1,292 @@
+{
+  "frames": 570,
+  "elapsed": 1425.6,
+  "n_conf": 0,
+  "reasons": {
+    "BIN_DISPOSAL": 2,
+    "NO_RELEASE_TRANSITION": 1,
+    "NOT_ENOUGH_CARRIED_FRAMES": 2
+  },
+  "cfg_sep": 0.2,
+  "cfg_attach": 0.15,
+  "cfg_carry": 3,
+  "ticks": 16,
+  "sep_true_n": 1,
+  "high_wd_carried_n": 1,
+  "high_wd_carried": [
+    {
+      "f": 514,
+      "t": 17.1,
+      "k": [
+        1,
+        60026
+      ],
+      "before": "BAG_CARRIED",
+      "st": "BAG_RELEASED",
+      "c": 6,
+      "wd": 0.207,
+      "max_wd": 0.207,
+      "wkp": true,
+      "att": true,
+      "sc": false,
+      "ng": false,
+      "mwp": false,
+      "pm": true,
+      "cont": 0.935,
+      "nd": 0.196,
+      "aidm_sep": true,
+      "aidm_ok": true
+    }
+  ],
+  "interesting": [
+    {
+      "f": 430,
+      "t": 14.3,
+      "k": [
+        1,
+        60010
+      ],
+      "before": "BAG_CARRIED",
+      "st": "BAG_CARRIED",
+      "c": 2,
+      "wd": 0.0725,
+      "max_wd": 0.2165,
+      "wkp": true,
+      "att": true,
+      "sc": false,
+      "ng": false,
+      "mwp": false,
+      "pm": true,
+      "cont": 1.0,
+      "nd": 0.112,
+      "aidm_sep": false,
+      "aidm_ok": true
+    },
+    {
+      "f": 458,
+      "t": 15.23,
+      "k": [
+        1,
+        60013
+      ],
+      "before": "BAG_CARRIED",
+      "st": "BAG_RELEASED",
+      "c": 2,
+      "wd": 0.0581,
+      "max_wd": 0.2165,
+      "wkp": true,
+      "att": true,
+      "sc": false,
+      "ng": false,
+      "mwp": false,
+      "pm": true,
+      "cont": 0.983,
+      "nd": 0.153,
+      "aidm_sep": false,
+      "aidm_ok": true
+    },
+    {
+      "f": 470,
+      "t": 15.63,
+      "k": [
+        1,
+        60010
+      ],
+      "before": "BAG_RELEASED",
+      "st": "BAG_RELEASED",
+      "c": 2,
+      "wd": 0.1126,
+      "max_wd": 0.2165,
+      "wkp": true,
+      "att": true,
+      "sc": true,
+      "ng": false,
+      "mwp": true,
+      "pm": true,
+      "cont": 1.0,
+      "nd": 0.185,
+      "aidm_sep": false,
+      "aidm_ok": false
+    },
+    {
+      "f": 474,
+      "t": 15.77,
+      "k": [
+        1,
+        60010
+      ],
+      "before": "BAG_RELEASED",
+      "st": "BAG_ON_GROUND",
+      "c": 3,
+      "wd": 0.0768,
+      "max_wd": 0.2165,
+      "wkp": true,
+      "att": true,
+      "sc": true,
+      "ng": false,
+      "mwp": true,
+      "pm": true,
+      "cont": 1.0,
+      "nd": 0.13,
+      "aidm_sep": false,
+      "aidm_ok": false
+    },
+    {
+      "f": 482,
+      "t": 16.03,
+      "k": [
+        1,
+        60021
+      ],
+      "before": "BAG_CARRIED",
+      "st": "BAG_CARRIED",
+      "c": 3,
+      "wd": 0.0888,
+      "max_wd": 0.1739,
+      "wkp": true,
+      "att": true,
+      "sc": false,
+      "ng": false,
+      "mwp": false,
+      "pm": true,
+      "cont": 1.0,
+      "nd": 0.113,
+      "aidm_sep": false,
+      "aidm_ok": true
+    },
+    {
+      "f": 490,
+      "t": 16.3,
+      "k": [
+        1,
+        60005
+      ],
+      "before": "BAG_ON_GROUND",
+      "st": "BAG_ON_GROUND",
+      "c": 4,
+      "wd": 0.0889,
+      "max_wd": 0.2165,
+      "wkp": true,
+      "att": true,
+      "sc": true,
+      "ng": false,
+      "mwp": true,
+      "pm": true,
+      "cont": 1.0,
+      "nd": 0.135,
+      "aidm_sep": false,
+      "aidm_ok": false
+    },
+    {
+      "f": 514,
+      "t": 17.1,
+      "k": [
+        1,
+        60026
+      ],
+      "before": "BAG_CARRIED",
+      "st": "BAG_RELEASED",
+      "c": 6,
+      "wd": 0.207,
+      "max_wd": 0.207,
+      "wkp": true,
+      "att": true,
+      "sc": false,
+      "ng": false,
+      "mwp": false,
+      "pm": true,
+      "cont": 0.935,
+      "nd": 0.196,
+      "aidm_sep": true,
+      "aidm_ok": true
+    },
+    {
+      "f": 530,
+      "t": 17.63,
+      "k": [
+        1,
+        60034
+      ],
+      "before": "BAG_CARRIED",
+      "st": "BAG_CARRIED",
+      "c": 4,
+      "wd": 0.1166,
+      "max_wd": 0.1166,
+      "wkp": true,
+      "att": true,
+      "sc": false,
+      "ng": false,
+      "mwp": false,
+      "pm": true,
+      "cont": 1.0,
+      "nd": 0.129,
+      "aidm_sep": false,
+      "aidm_ok": true
+    },
+    {
+      "f": 534,
+      "t": 17.77,
+      "k": [
+        1,
+        60034
+      ],
+      "before": "BAG_NEAR_PERSON",
+      "st": "BAG_CARRIED",
+      "c": 2,
+      "wd": 0.0462,
+      "max_wd": 0.0967,
+      "wkp": true,
+      "att": true,
+      "sc": false,
+      "ng": false,
+      "mwp": false,
+      "pm": true,
+      "cont": 1.0,
+      "nd": 0.105,
+      "aidm_sep": false,
+      "aidm_ok": true
+    }
+  ],
+  "rej": [
+    {
+      "r": "BIN_DISPOSAL",
+      "c": 5,
+      "max_wd": 0.2165,
+      "wd": null,
+      "loc": "LOCATION_AMBIGUOUS",
+      "att": true
+    },
+    {
+      "r": "BIN_DISPOSAL",
+      "c": 6,
+      "max_wd": 0.207,
+      "wd": null,
+      "loc": "LOCATION_AMBIGUOUS",
+      "att": true
+    },
+    {
+      "r": "NO_RELEASE_TRANSITION",
+      "c": 4,
+      "max_wd": 0.1166,
+      "wd": null,
+      "loc": "LOCATION_AMBIGUOUS",
+      "att": true
+    },
+    {
+      "r": "NOT_ENOUGH_CARRIED_FRAMES",
+      "c": 2,
+      "max_wd": 0.0967,
+      "wd": null,
+      "loc": "LOCATION_AMBIGUOUS",
+      "att": true
+    },
+    {
+      "r": "NOT_ENOUGH_CARRIED_FRAMES",
+      "c": 2,
+      "max_wd": 0.207,
+      "wd": null,
+      "loc": "LOCATION_AMBIGUOUS",
+      "att": true
+    }
+  ]
+}

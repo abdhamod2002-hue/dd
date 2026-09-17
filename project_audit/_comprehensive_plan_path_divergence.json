@@ -1,0 +1,47 @@
+{
+  "video": "/data/22/IMG_5117.MOV",
+  "path_A": {
+    "tag": "A_cfr_det",
+    "cfr": true,
+    "deterministic": true,
+    "frames": 137,
+    "elapsed_sec": 29.0,
+    "n_confirmed": 1,
+    "n_rejected": 1,
+    "pred_times": [
+      4.033333333333333
+    ],
+    "rejection_reasons": {
+      "BIN_DISPOSAL": 1
+    },
+    "thresholds": {
+      "min_carried_frames": 3,
+      "release_distance_ratio": 0.12,
+      "departure_motion_ratio": 0.45,
+      "smoothing_window": 3
+    }
+  },
+  "path_B": {
+    "tag": "B_raw_cli",
+    "cfr": false,
+    "deterministic": false,
+    "frames": 273,
+    "elapsed_sec": 49.72,
+    "n_confirmed": 0,
+    "n_rejected": 2,
+    "pred_times": [],
+    "rejection_reasons": {
+      "BIN_DISPOSAL": 1,
+      "PERSON_DID_NOT_DEPART": 1
+    },
+    "thresholds": {
+      "min_carried_frames": 3,
+      "release_distance_ratio": 0.12,
+      "departure_motion_ratio": 0.45,
+      "smoothing_window": 3
+    }
+  },
+  "decision_differs": true,
+  "threshold_differs": false,
+  "note": "Path B here still constructs AdaptiveEventDetector which READS learning.json; difference isolates CFR+determinism+deterministic flag, not the learning read path (that is \u00a726.2)."
+}

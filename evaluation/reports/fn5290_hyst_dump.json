@@ -1,0 +1,76 @@
+{
+  "video": "/data/22/IMG_5290.MOV",
+  "frames": 570,
+  "n_conf": 0,
+  "reasons": {
+    "BIN_DISPOSAL": 5
+  },
+  "cfg_sep": 0.2,
+  "cfg_carry": 3,
+  "sep_latches": 1,
+  "carried_high_wd_ticks": 1,
+  "latch_samples": [
+    {
+      "f": 514,
+      "t": 17.1,
+      "wd": 0.207,
+      "st": "BAG_RELEASED",
+      "c": 6,
+      "att": true,
+      "rel": 514
+    }
+  ],
+  "conf": [],
+  "rej": [
+    {
+      "r": "BIN_DISPOSAL",
+      "c": 3,
+      "max_wd": 0.2165,
+      "aidm_sep": null,
+      "att": true,
+      "rel": 438,
+      "loc": "LOCATION_AMBIGUOUS",
+      "st": "PERSON_DEPARTED"
+    },
+    {
+      "r": "BIN_DISPOSAL",
+      "c": 6,
+      "max_wd": 0.207,
+      "aidm_sep": null,
+      "att": true,
+      "rel": 514,
+      "loc": "LOCATION_AMBIGUOUS",
+      "st": "PERSON_DEPARTED"
+    },
+    {
+      "r": "BIN_DISPOSAL",
+      "c": 3,
+      "max_wd": 0.1166,
+      "aidm_sep": null,
+      "att": true,
+      "rel": 510,
+      "loc": "LOCATION_AMBIGUOUS",
+      "st": "PERSON_DEPARTED"
+    },
+    {
+      "r": "BIN_DISPOSAL",
+      "c": 2,
+      "max_wd": 0.0967,
+      "aidm_sep": null,
+      "att": true,
+      "rel": 546,
+      "loc": "LOCATION_AMBIGUOUS",
+      "st": "PERSON_DEPARTED"
+    },
+    {
+      "r": "BIN_DISPOSAL",
+      "c": 2,
+      "max_wd": 0.207,
+      "aidm_sep": null,
+      "att": true,
+      "rel": 534,
+      "loc": "LOCATION_AMBIGUOUS",
+      "st": "PERSON_DEPARTED"
+    }
+  ]
+}

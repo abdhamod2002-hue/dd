@@ -1,0 +1,252 @@
+{
+  "summary": {
+    "total_candidates": 4,
+    "confirmed_violations": 0,
+    "rejected_candidates": 4,
+    "acceptance_rate": 0.0,
+    "rejection_reason_counts": {
+      "PICKED_BACK_UP": 1,
+      "NO_RELEASE_TRANSITION": 1,
+      "NOT_ENOUGH_CARRIED_FRAMES": 2
+    },
+    "active_pairs": 0,
+    "adaptive": {
+      "tiers": 3,
+      "tier_summaries": [
+        {
+          "total_candidates": 4,
+          "confirmed_violations": 0,
+          "rejected_candidates": 4,
+          "acceptance_rate": 0.0,
+          "rejection_reason_counts": {
+            "PICKED_BACK_UP": 1,
+            "NO_RELEASE_TRANSITION": 1,
+            "NOT_ENOUGH_CARRIED_FRAMES": 2
+          },
+          "active_pairs": 0
+        },
+        {
+          "total_candidates": 4,
+          "confirmed_violations": 0,
+          "rejected_candidates": 4,
+          "acceptance_rate": 0.0,
+          "rejection_reason_counts": {
+            "PICKED_BACK_UP": 1,
+            "NO_RELEASE_TRANSITION": 1,
+            "NOT_ENOUGH_CARRIED_FRAMES": 2
+          },
+          "active_pairs": 0
+        },
+        {
+          "total_candidates": 4,
+          "confirmed_violations": 0,
+          "rejected_candidates": 4,
+          "acceptance_rate": 0.0,
+          "rejection_reason_counts": {
+            "PICKED_BACK_UP": 1,
+            "NO_RELEASE_TRANSITION": 1,
+            "NOT_ENOUGH_CARRIED_FRAMES": 2
+          },
+          "active_pairs": 0
+        }
+      ],
+      "learned_overrides": {
+        "release_distance_ratio": 0.12,
+        "release_distance_floor": 0.1,
+        "release_window_frames": 8,
+        "feet_release_frames": 2,
+        "max_pair_age_frames": 90,
+        "min_carried_frames": 3,
+        "smoothing_window": 3,
+        "departure_motion_ratio": 0.45,
+        "departure_distance_ratio": 0.85
+      },
+      "videos_analyzed": 77
+    }
+  },
+  "config": {
+    "analysis_fps": 8.0,
+    "detection_low_conf": 0.1,
+    "detection_high_conf": 0.25,
+    "min_carried_frames": 6,
+    "min_stationary_frames": 8,
+    "near_distance_ratio": 0.25,
+    "departure_distance_ratio": 1.25,
+    "departure_motion_ratio": 0.65,
+    "stationary_distance_ratio": 0.15,
+    "stationary_window_frames": 3,
+    "min_event_confidence": 0.5,
+    "max_fallback_tracker_gap_frames": 40
+  },
+  "confirmed_violations": [],
+  "rejected_candidates": [
+    {
+      "event_id": "ed8978b89103",
+      "person_track_id": 3,
+      "bag_track_id": 60005,
+      "bag_uid": 100002,
+      "event_actor_person_track_id": 3,
+      "event_actor_person_uid": 1,
+      "event_object_track_id": 60005,
+      "event_object_uid": 100002,
+      "state": "PICKED_BACK_UP",
+      "confirmed": false,
+      "reason": "PICKED_BACK_UP",
+      "confidence": 0.3059,
+      "evidence": {
+        "carry_score": 1.0,
+        "release_score": 0.0,
+        "stationary_score": 0.0,
+        "departure_score": 0.0,
+        "association_score": 0.8986,
+        "detection_score": 1.0,
+        "confidence": 0.3059
+      },
+      "frames": {
+        "carry_start": 753,
+        "release": null,
+        "ground": null,
+        "departure": null,
+        "confirmed": null
+      },
+      "timestamps": {
+        "carry_start": 1789200354.6722906,
+        "release": null,
+        "ground": null,
+        "departure": null,
+        "confirmed": null
+      },
+      "bag_class": "black_waste_bag",
+      "fallback_used": true,
+      "yolo_reconfirmed": false,
+      "detector_source": "color_fallback",
+      "other_person_closer": false
+    },
+    {
+      "event_id": "fb15763b8343",
+      "person_track_id": 3,
+      "bag_track_id": 60025,
+      "bag_uid": 100003,
+      "event_actor_person_track_id": 3,
+      "event_actor_person_uid": 1,
+      "event_object_track_id": 60025,
+      "event_object_uid": 100003,
+      "state": "BAG_CARRIED",
+      "confirmed": false,
+      "reason": "NO_RELEASE_TRANSITION",
+      "confidence": 0.3156,
+      "evidence": {
+        "carry_score": 1.0,
+        "release_score": 0.0,
+        "stationary_score": 0.0,
+        "departure_score": 0.0,
+        "association_score": 0.8221,
+        "detection_score": 1.0,
+        "confidence": 0.3156
+      },
+      "frames": {
+        "carry_start": 953,
+        "release": null,
+        "ground": null,
+        "departure": null,
+        "confirmed": null
+      },
+      "timestamps": {
+        "carry_start": 1789200358.0070858,
+        "release": null,
+        "ground": null,
+        "departure": null,
+        "confirmed": null
+      },
+      "bag_class": "yellow_waste_bag",
+      "fallback_used": true,
+      "yolo_reconfirmed": true,
+      "detector_source": "color_fallback",
+      "other_person_closer": false
+    },
+    {
+      "event_id": "44c6ed7d12f0",
+      "person_track_id": 3,
+      "bag_track_id": 60038,
+      "bag_uid": 100004,
+      "event_actor_person_track_id": 3,
+      "event_actor_person_uid": 1,
+      "event_object_track_id": 60038,
+      "event_object_uid": 100004,
+      "state": "BAG_NEAR_PERSON",
+      "confirmed": false,
+      "reason": "NOT_ENOUGH_CARRIED_FRAMES",
+      "confidence": 0.2266,
+      "evidence": {
+        "carry_score": 0.6667,
+        "release_score": 0.0,
+        "stationary_score": 0.0,
+        "departure_score": 0.0,
+        "association_score": 0.8507,
+        "detection_score": 1.0,
+        "confidence": 0.2266
+      },
+      "frames": {
+        "carry_start": 977,
+        "release": null,
+        "ground": null,
+        "departure": null,
+        "confirmed": null
+      },
+      "timestamps": {
+        "carry_start": 1789200358.4072611,
+        "release": null,
+        "ground": null,
+        "departure": null,
+        "confirmed": null
+      },
+      "bag_class": "yellow_waste_bag",
+      "fallback_used": true,
+      "yolo_reconfirmed": false,
+      "detector_source": "color_fallback",
+      "other_person_closer": false
+    },
+    {
+      "event_id": "f5645e3510c9",
+      "person_track_id": 3,
+      "bag_track_id": 60018,
+      "bag_uid": 100008,
+      "event_actor_person_track_id": 3,
+      "event_actor_person_uid": 1,
+      "event_object_track_id": 60018,
+      "event_object_uid": 100008,
+      "state": "BAG_NEAR_PERSON",
+      "confirmed": false,
+      "reason": "NOT_ENOUGH_CARRIED_FRAMES",
+      "confidence": 0.2302,
+      "evidence": {
+        "carry_score": 0.6667,
+        "release_score": 0.0,
+        "stationary_score": 0.0,
+        "departure_score": 0.0,
+        "association_score": 0.8914,
+        "detection_score": 1.0,
+        "confidence": 0.2302
+      },
+      "frames": {
+        "carry_start": 1057,
+        "release": null,
+        "ground": null,
+        "departure": null,
+        "confirmed": null
+      },
+      "timestamps": {
+        "carry_start": 1789200359.7411792,
+        "release": null,
+        "ground": null,
+        "departure": null,
+        "confirmed": null
+      },
+      "bag_class": "red_waste_bag",
+      "fallback_used": true,
+      "yolo_reconfirmed": false,
+      "detector_source": "color_fallback",
+      "other_person_closer": false
+    }
+  ]
+}

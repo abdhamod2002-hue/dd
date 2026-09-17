@@ -1,0 +1,159 @@
+{
+  "frozen_set": "frozen_test_set.v1.json",
+  "frozen_set_version": "1.0",
+  "generated_at": "20260913T095601Z",
+  "missing_videos": [],
+  "protocol": {
+    "name": "MIVIA-IWDD-style temporal event matching",
+    "reference": "https://github.com/MiviaLab/IllegalWasteDumping",
+    "delta_t_sec": 3.0,
+    "t_max_sec": 10.0,
+    "notes": "A predicted confirmation within \u0394t of the labelled event time is a TP. Predictions farther than T_max from any GT event are FP. Unmatched GT events are FN. Clip-level P/R/F1 also reported (LITTER vs hard-negative)."
+  },
+  "report": {
+    "aggregate": {
+      "scenario": "ALL",
+      "n": 4,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "tn": 2,
+      "precision": 1.0,
+      "recall": 0.5,
+      "f1": 0.6666666666666666,
+      "fpr": 0.0,
+      "mean_latency": 2.033333333333333,
+      "mean_fps": 5.358083712984972
+    },
+    "confusion_matrix": {
+      "TP": 1,
+      "FP": 0,
+      "FN": 1,
+      "TN": 2
+    },
+    "temporal": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "precision": 1.0,
+      "recall": 0.5,
+      "f1": 0.6666666666666666,
+      "delta_t_sec": 3.0,
+      "t_max_sec": 10.0
+    },
+    "per_scenario": {
+      "ground_litter_close": {
+        "scenario": "ground_litter_close",
+        "n": 1,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+        "tn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "fpr": 0.0,
+        "mean_latency": 2.033333333333333,
+        "mean_fps": 5.288589189508531
+      },
+      "ground_litter_street": {
+        "scenario": "ground_litter_street",
+        "n": 1,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "tn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "fpr": 0.0,
+        "mean_latency": 0.0,
+        "mean_fps": 5.021028925268303
+      },
+      "carry_only_hard_negative": {
+        "scenario": "carry_only_hard_negative",
+        "n": 1,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 1,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "fpr": 0.0,
+        "mean_latency": 0.0,
+        "mean_fps": 5.954169594367973
+      },
+      "pedestrians_no_waste": {
+        "scenario": "pedestrians_no_waste",
+        "n": 1,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 1,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "fpr": 0.0,
+        "mean_latency": 0.0,
+        "mean_fps": 5.168547142795081
+      }
+    },
+    "all_results": [
+      {
+        "clip_id": "IMG_5117",
+        "scenario": "ground_litter_close",
+        "ground_truth": true,
+        "predicted": true,
+        "latency_seconds": 2.033333333333333,
+        "fps": 5.288589189508531,
+        "gt_event_time_sec": 3.47,
+        "pred_event_times_sec": [
+          2.033333333333333
+        ],
+        "temporal_tp": 1,
+        "temporal_fp": 0,
+        "temporal_fn": 0
+      },
+      {
+        "clip_id": "M",
+        "scenario": "ground_litter_street",
+        "ground_truth": true,
+        "predicted": false,
+        "latency_seconds": 0.0,
+        "fps": 5.021028925268303,
+        "gt_event_time_sec": 5.34,
+        "pred_event_times_sec": [],
+        "temporal_tp": 0,
+        "temporal_fp": 0,
+        "temporal_fn": 1
+      },
+      {
+        "clip_id": "IMG_5115",
+        "scenario": "carry_only_hard_negative",
+        "ground_truth": false,
+        "predicted": false,
+        "latency_seconds": 0.0,
+        "fps": 5.954169594367973,
+        "gt_event_time_sec": null,
+        "pred_event_times_sec": [],
+        "temporal_tp": 0,
+        "temporal_fp": 0,
+        "temporal_fn": 0
+      },
+      {
+        "clip_id": "IMG_5303",
+        "scenario": "pedestrians_no_waste",
+        "ground_truth": false,
+        "predicted": false,
+        "latency_seconds": 0.0,
+        "fps": 5.168547142795081,
+        "gt_event_time_sec": null,
+        "pred_event_times_sec": [],
+        "temporal_tp": 0,
+        "temporal_fp": 0,
+        "temporal_fn": 0
+      }
+    ]
+  }
+}

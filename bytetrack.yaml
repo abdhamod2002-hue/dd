@@ -1,0 +1,23 @@
+# ByteTrack configuration optimized for detecting low-contrast / small objects (e.g., trash bags)
+# Ref: GitHub Issue #1320 - tuning track activation & second pass thresholds
+
+tracker_type: bytetrack
+
+# Motared Section 4 — raise activation floors so long videos do not spawn
+# thousands of tentative phantom tracks from low-confidence NMS leftovers.
+track_high_thresh: 0.4
+track_low_thresh: 0.2
+new_track_thresh: 0.4
+
+# Number of frames to keep lost tracks before deleting
+track_buffer: 30
+
+# IoU matching threshold for association
+match_thresh: 0.8
+
+# Fuse detection score with IoU during matching
+fuse_score: True
+
+# Track confirmation: ByteTrack + Motared hit-count. 3 restores short-clip
+# recall (IMG_5117) while still suppressing single-frame jitter IDs.
+minimum_consecutive_frames: 3

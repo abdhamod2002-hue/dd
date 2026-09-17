@@ -1,0 +1,80 @@
+{
+  "frozen_set": "frozen_test_set.v1.json",
+  "frozen_set_version": "1.0",
+  "generated_at": "20260915T115734Z",
+  "missing_videos": [],
+  "protocol": {
+    "name": "MIVIA-IWDD-style temporal event matching",
+    "reference": "https://github.com/MiviaLab/IllegalWasteDumping",
+    "delta_t_sec": 3.0,
+    "t_max_sec": 10.0,
+    "notes": "A predicted confirmation within \u0394t of the labelled event time is a TP. Predictions farther than T_max from any GT event are FP. Unmatched GT events are FN. Clip-level P/R/F1 also reported (LITTER vs hard-negative)."
+  },
+  "report": {
+    "aggregate": {
+      "scenario": "ALL",
+      "n": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "tn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "fpr": 0.0,
+      "mean_latency": 12.966666666666667,
+      "mean_fps": 4.0378590018863
+    },
+    "confusion_matrix": {
+      "TP": 1,
+      "FP": 0,
+      "FN": 0,
+      "TN": 0
+    },
+    "temporal": {
+      "tp": 1,
+      "fp": 2,
+      "fn": 0,
+      "precision": 0.3333333333333333,
+      "recall": 1.0,
+      "f1": 0.5,
+      "delta_t_sec": 3.0,
+      "t_max_sec": 10.0
+    },
+    "per_scenario": {
+      "ground_litter_dumpster_scene": {
+        "scenario": "ground_litter_dumpster_scene",
+        "n": 1,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+        "tn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "fpr": 0.0,
+        "mean_latency": 12.966666666666667,
+        "mean_fps": 4.0378590018863
+      }
+    },
+    "all_results": [
+      {
+        "clip_id": "IMG_5290",
+        "scenario": "ground_litter_dumpster_scene",
+        "ground_truth": true,
+        "predicted": true,
+        "latency_seconds": 12.966666666666667,
+        "fps": 4.0378590018863,
+        "gt_event_time_sec": 16.27,
+        "pred_event_times_sec": [
+          12.966666666666667,
+          17.633333333333333,
+          17.9
+        ],
+        "temporal_tp": 1,
+        "temporal_fp": 2,
+        "temporal_fn": 0
+      }
+    ]
+  }
+}

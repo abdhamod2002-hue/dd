@@ -1,0 +1,402 @@
+{
+  "IMG_5290.MOV": {
+    "n_conf": 0,
+    "reasons": {
+      "NO_RELEASE_TRANSITION": 3,
+      "NOT_ENOUGH_CARRIED_FRAMES": 2
+    },
+    "cfg_min_carry": 3,
+    "cfg_aidm_sep": 0.2,
+    "transitions": [
+      {
+        "f": 385,
+        "k": "(1, 100001)",
+        "from": "NO_BAG",
+        "to": "BAG_NEAR_PERSON",
+        "c": 0,
+        "rel": null,
+        "aidm": false,
+        "wd": 0.217
+      },
+      {
+        "f": 425,
+        "k": "(1, 100001)",
+        "from": "BAG_NEAR_PERSON",
+        "to": "BAG_CARRIED",
+        "c": 2,
+        "rel": null,
+        "aidm": true,
+        "wd": 0.217
+      },
+      {
+        "f": 465,
+        "k": "(1, 100003)",
+        "from": "NO_BAG",
+        "to": "BAG_NEAR_PERSON",
+        "c": 1,
+        "rel": null,
+        "aidm": false,
+        "wd": 0.174
+      },
+      {
+        "f": 477,
+        "k": "(1, 100003)",
+        "from": "BAG_NEAR_PERSON",
+        "to": "BAG_CARRIED",
+        "c": 2,
+        "rel": null,
+        "aidm": true,
+        "wd": 0.174
+      },
+      {
+        "f": 489,
+        "k": "(1, 100002)",
+        "from": "NO_BAG",
+        "to": "BAG_NEAR_PERSON",
+        "c": 1,
+        "rel": null,
+        "aidm": true,
+        "wd": 0.095
+      },
+      {
+        "f": 497,
+        "k": "(1, 100002)",
+        "from": "BAG_NEAR_PERSON",
+        "to": "BAG_CARRIED",
+        "c": 2,
+        "rel": null,
+        "aidm": true,
+        "wd": 0.095
+      },
+      {
+        "f": 505,
+        "k": "(1, 100006)",
+        "from": "NO_BAG",
+        "to": "BAG_NEAR_PERSON",
+        "c": 1,
+        "rel": null,
+        "aidm": true,
+        "wd": 0.097
+      },
+      {
+        "f": 517,
+        "k": "(1, 100008)",
+        "from": "NO_BAG",
+        "to": "BAG_NEAR_PERSON",
+        "c": 0,
+        "rel": null,
+        "aidm": true,
+        "wd": 0.207
+      },
+      {
+        "f": 525,
+        "k": "(1, 100008)",
+        "from": "BAG_NEAR_PERSON",
+        "to": "BAG_CARRIED",
+        "c": 2,
+        "rel": null,
+        "aidm": true,
+        "wd": 0.207
+      },
+      {
+        "f": 533,
+        "k": "(1, 100006)",
+        "from": "BAG_NEAR_PERSON",
+        "to": "BAG_CARRIED",
+        "c": 2,
+        "rel": null,
+        "aidm": true,
+        "wd": 0.097
+      },
+      {
+        "f": 533,
+        "k": "(1, 100007)",
+        "from": "NO_BAG",
+        "to": "BAG_NEAR_PERSON",
+        "c": 0,
+        "rel": null,
+        "aidm": true,
+        "wd": 0.117
+      }
+    ],
+    "evals": [],
+    "rej": [
+      {
+        "r": "NO_RELEASE_TRANSITION",
+        "c": 6,
+        "fr": {
+          "carry_start": 414,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "aidm": true,
+        "wd": 0.2165,
+        "loc": "LOCATION_AMBIGUOUS"
+      },
+      {
+        "r": "NO_RELEASE_TRANSITION",
+        "c": 6,
+        "fr": {
+          "carry_start": 466,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "aidm": true,
+        "wd": 0.207,
+        "loc": "LOCATION_AMBIGUOUS"
+      },
+      {
+        "r": "NO_RELEASE_TRANSITION",
+        "c": 4,
+        "fr": {
+          "carry_start": 490,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "aidm": true,
+        "wd": 0.1166,
+        "loc": "LOCATION_AMBIGUOUS"
+      },
+      {
+        "r": "NOT_ENOUGH_CARRIED_FRAMES",
+        "c": 2,
+        "fr": {
+          "carry_start": 506,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "aidm": true,
+        "wd": 0.0967,
+        "loc": "LOCATION_AMBIGUOUS"
+      },
+      {
+        "r": "NOT_ENOUGH_CARRIED_FRAMES",
+        "c": 2,
+        "fr": {
+          "carry_start": 522,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "aidm": true,
+        "wd": 0.207,
+        "loc": "LOCATION_AMBIGUOUS"
+      }
+    ]
+  },
+  "IMG_5295.MOV": {
+    "n_conf": 0,
+    "reasons": {
+      "NOT_ENOUGH_CARRIED_FRAMES": 3
+    },
+    "cfg_min_carry": 3,
+    "cfg_aidm_sep": 0.2,
+    "transitions": [
+      {
+        "f": 565,
+        "k": "(1, 100001)",
+        "from": "NO_BAG",
+        "to": "BAG_NEAR_PERSON",
+        "c": 0,
+        "rel": null,
+        "aidm": true,
+        "wd": 0.128
+      },
+      {
+        "f": 589,
+        "k": "(1, 100005)",
+        "from": "NO_BAG",
+        "to": "BAG_NEAR_PERSON",
+        "c": 0,
+        "rel": null,
+        "aidm": false,
+        "wd": 0.305
+      },
+      {
+        "f": 593,
+        "k": "(1, 100002)",
+        "from": "NO_BAG",
+        "to": "BAG_NEAR_PERSON",
+        "c": 0,
+        "rel": null,
+        "aidm": false,
+        "wd": 0.442
+      },
+      {
+        "f": 621,
+        "k": "(1, 100006)",
+        "from": "NO_BAG",
+        "to": "BAG_NEAR_PERSON",
+        "c": 0,
+        "rel": null,
+        "aidm": false,
+        "wd": 0.344
+      },
+      {
+        "f": 629,
+        "k": "(1, 100008)",
+        "from": "NO_BAG",
+        "to": "BAG_NEAR_PERSON",
+        "c": 0,
+        "rel": null,
+        "aidm": true,
+        "wd": 0.061
+      },
+      {
+        "f": 649,
+        "k": "(1, 100010)",
+        "from": "NO_BAG",
+        "to": "BAG_NEAR_PERSON",
+        "c": 1,
+        "rel": null,
+        "aidm": true,
+        "wd": 0.082
+      },
+      {
+        "f": 673,
+        "k": "(1, 100002)",
+        "from": "BAG_NEAR_PERSON",
+        "to": "BAG_CARRIED",
+        "c": 2,
+        "rel": null,
+        "aidm": true,
+        "wd": 0.442
+      }
+    ],
+    "evals": [],
+    "rej": [
+      {
+        "r": "NOT_ENOUGH_CARRIED_FRAMES",
+        "c": 2,
+        "fr": {
+          "carry_start": 666,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "aidm": true,
+        "wd": 0.4417,
+        "loc": "LOCATION_AMBIGUOUS"
+      },
+      {
+        "r": "NOT_ENOUGH_CARRIED_FRAMES",
+        "c": 1,
+        "fr": {
+          "carry_start": 670,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "aidm": true,
+        "wd": 0.3437,
+        "loc": "LOCATION_AMBIGUOUS"
+      },
+      {
+        "r": "NOT_ENOUGH_CARRIED_FRAMES",
+        "c": 1,
+        "fr": {
+          "carry_start": 650,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "aidm": true,
+        "wd": 0.0823,
+        "loc": "LOCATION_AMBIGUOUS"
+      }
+    ]
+  },
+  "IMG_5118.MOV": {
+    "n_conf": 0,
+    "reasons": {
+      "NOT_ENOUGH_CARRIED_FRAMES": 2
+    },
+    "cfg_min_carry": 3,
+    "cfg_aidm_sep": 0.2,
+    "transitions": [
+      {
+        "f": 145,
+        "k": "(1, 100001)",
+        "from": "NO_BAG",
+        "to": "BAG_NEAR_PERSON",
+        "c": 1,
+        "rel": null,
+        "aidm": true,
+        "wd": 0.149
+      },
+      {
+        "f": 153,
+        "k": "(1, 100003)",
+        "from": "NO_BAG",
+        "to": "BAG_NEAR_PERSON",
+        "c": 0,
+        "rel": null,
+        "aidm": true,
+        "wd": 0.355
+      },
+      {
+        "f": 197,
+        "k": "(1, 100004)",
+        "from": "NO_BAG",
+        "to": "BAG_NEAR_PERSON",
+        "c": 0,
+        "rel": null,
+        "aidm": true,
+        "wd": 0.15
+      },
+      {
+        "f": 225,
+        "k": "(1, 100004)",
+        "from": "BAG_NEAR_PERSON",
+        "to": "BAG_CARRIED",
+        "c": 2,
+        "rel": null,
+        "aidm": true,
+        "wd": 0.15
+      }
+    ],
+    "evals": [],
+    "rej": [
+      {
+        "r": "NOT_ENOUGH_CARRIED_FRAMES",
+        "c": 1,
+        "fr": {
+          "carry_start": 146,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "aidm": true,
+        "wd": 0.1494,
+        "loc": "LOCATION_AMBIGUOUS"
+      },
+      {
+        "r": "NOT_ENOUGH_CARRIED_FRAMES",
+        "c": 2,
+        "fr": {
+          "carry_start": 214,
+          "release": null,
+          "ground": null,
+          "departure": null,
+          "confirmed": null
+        },
+        "aidm": true,
+        "wd": 0.1497,
+        "loc": "LOCATION_AMBIGUOUS"
+      }
+    ]
+  }
+}
