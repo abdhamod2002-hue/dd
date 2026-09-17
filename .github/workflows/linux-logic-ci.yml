@@ -37,9 +37,8 @@ jobs:
           python -c "from inference.pipeline import InferencePipeline, PipelineConfig; InferencePipeline(PipelineConfig())"
           python -c "from backend.main import app; print('backend OK')"
 
-      - name: Check environment (honest report)
+      - name: P1-E frozen eval manifest gate (no videos required)
         env:
           PYTHONPATH: .
         run: |
-          python scripts/check_environment.py || true
-          # check_environment exits non-zero on missing best.pt/cv2 — that's expected on Linux CI without models
+          python -m pytest tests/test_frozen_eval_manifest.py -q --tb=short

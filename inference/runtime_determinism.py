@@ -7,6 +7,16 @@ Sources of non-determinism we harden against:
 * Python / NumPy / PyTorch RNGs
 * TensorFlow MoveNet ops (separate stack from YOLO/ultralytics)
 
+P0-C GPU status (2026-09-15): CPU path is measured green (see plan §26).
+GPU is explicitly NOT VERIFIED — this host has no CUDA, so the strict
+``use_deterministic_algorithms(True, warn_only=False)`` branch and any
+unsupported-op fallback have never run on real CUDA hardware. Deterministic
+mode requests strict kernels and falls back to ``warn_only=True`` ONLY if a
+specific op raises (recorded in the report as
+``torch_deterministic_fallback``); on CPU-only hosts the strict call is a
+no-op success. Do not claim GPU reproducibility without a two-run
+same-GPU measurement.
+
 CUBLAS_WORKSPACE_CONFIG and PYTHONHASHSEED should be set before the first
 ``import torch`` when possible; we still set them here so long-running
 backend workers get them before the next CUDA workspace allocation.
@@ -55,7 +65,18 @@ def configure_determinism(seed: int = _DEFAULT_SEED) -> dict:
         torch.manual_seed(seed)
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(seed)
-        torch.use_deterministic_algorithms(True, warn_only=True)
+        # P0-C: when Motared is in deterministic mode, refuse nondeterministic
+        # CUDA kernels instead of warn_only (which silently permitted drift).
+        # Fall back to warn_only only if an op is unsupported so CPU eval /
+        # CI still runs.
+        strict = determinism_enabled_from_env()
+        try:
+            torch.use_deterministic_algorithms(True, warn_only=not strict)
+            report["torch_deterministic_warn_only"] = not strict
+        except Exception as exc:
+            torch.use_deterministic_algorithms(True, warn_only=True)
+            report["torch_deterministic_fallback"] = str(exc)
+            report["torch_deterministic_warn_only"] = True
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
         if hasattr(torch.backends, "cuda") and hasattr(torch.backends.cuda, "matmul"):

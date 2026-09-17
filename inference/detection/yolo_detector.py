@@ -52,6 +52,12 @@ def promote_handheld_color_class(
     cy = (y1 + y2) * 0.5
 
     best_ratio = None
+    # Unconditional initialization: `promoted` used to be assigned only inside
+    # the loop body and read at function return. The `best_ratio is None`
+    # guard happened to make that safe, but that coupling is invisible to a
+    # future edit — a reordering would resurrect the same NameError class as
+    # the production `sep_floor` crash (IMG_5291 / job 43).
+    promoted = cls
     for px1, py1, px2, py2 in person_boxes:
         pw = max(1.0, float(px2) - float(px1))
         ph = max(1.0, float(py2) - float(py1))
@@ -476,14 +482,43 @@ class YoloDetector:
         if os.environ.get("PHASE3_DISABLE_DEDUP") != "1":
             out = deduplicate_tracked(out)
 
-        # Color fallback for the real demo videos: if neither the custom litter
-        # model nor COCO fallback produced an object, try a conservative
-        # HSV/contour waste-bag detector. This is still real inference output;
-        # it does not inject events or synthetic tracks.
-        has_object = any(not d.is_person for d in out)
-        if self._color_fallback_enabled and not has_object:
-            person_boxes = [d.bbox for d in out if d.is_person]
-            out.extend(self._color_fallback_track(frame, persist=persist, person_boxes=person_boxes))
+        # Color fallback for the real demo videos. Previously gated on
+        # ``not has_object``, so a YOLO clothing/hip latch (IMG_5290) permanently
+        # blocked the HSV handheld bag that actually hits the ground. Treat
+        # high-containment mid-body boxes as non-objects for this gate.
+        persons = [d for d in out if d.is_person]
+        person_boxes = [d.bbox for d in persons]
+        def _body_latch(det: "TrackedDetection") -> bool:
+            if det.is_person or not person_boxes:
+                return False
+            dx1, dy1, dx2, dy2 = [float(v) for v in det.bbox]
+            dcx = 0.5 * (dx1 + dx2)
+            dcy = 0.5 * (dy1 + dy2)
+            d_area = max(1.0, (dx2 - dx1) * (dy2 - dy1))
+            for px1, py1, px2, py2 in person_boxes:
+                pw = max(1.0, float(px2) - float(px1))
+                ph = max(1.0, float(py2) - float(py1))
+                # Mid-torso band (not the feet/ground band).
+                if not (
+                    float(px1) - 0.1 * pw <= dcx <= float(px2) + 0.1 * pw
+                    and float(py1) + 0.15 * ph <= dcy <= float(py2) - 0.15 * ph
+                ):
+                    continue
+                ix = max(0.0, min(dx2, float(px2)) - max(dx1, float(px1)))
+                iy = max(0.0, min(dy2, float(py2)) - max(dy1, float(py1)))
+                if (ix * iy) / d_area >= 0.45:
+                    return True
+            return False
+
+        real_objects = [
+            d for d in out if (not d.is_person) and (not _body_latch(d))
+        ]
+        if self._color_fallback_enabled and not real_objects:
+            out.extend(
+                self._color_fallback_track(
+                    frame, persist=persist, person_boxes=person_boxes
+                )
+            )
             # The color tracker emits EVERY established track each frame
             # (yellow/green/blue/black/white fragments can overlap on the same
             # pile). Collapse same-frame duplicates here too — idempotent for

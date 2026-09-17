@@ -24,6 +24,7 @@ import argparse
 import os
 import sys
 import time
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 # allow running from repo root
@@ -92,6 +93,44 @@ def build_tracks(frame, detections, yolo, movenet, tracker_ns, namespace_offset)
         "build_tracks() is deprecated — it assigned fake per-frame ids. "
         "Use build_tracks_real() with YoloDetector.track() output instead."
     )
+
+
+def build_shared_file_pipeline(
+    *,
+    analysis_fps: float = 10.0,
+    camera_id: str = "file",
+    deterministic: bool = True,
+    post_backend_url: Optional[str] = None,
+    active_learning: bool = True,
+    learning_tag: Optional[str] = None,
+) -> PipelineConfig:
+    """P0-B: ONE shared file-mode loop config (Path A == Path B).
+
+    Upload (`backend/routers/analysis.py`) and CLI file mode
+    (`scripts/run_pipeline.py --source file`) must construct the SAME
+    pipeline: CFR upstream, ``configure_determinism(0)`` process-wide, and
+    identical ``AdaptiveEventDetector`` defaults (buffer/analysis_fps/
+    camera/auto_tune/deterministic). Live camera may skip CFR; file mode
+    must not. ``evaluation/run_frozen_eval.py`` uses this too so the frozen
+    gate measures the production loop, not a third variant.
+    """
+    return PipelineConfig(
+        buffer_seconds=8.0,
+        analysis_fps=analysis_fps,
+        camera_id=camera_id,
+        post_backend_url=post_backend_url,
+        auto_tune=True,
+        active_learning=active_learning,
+        deterministic=deterministic,
+        learning_tag=learning_tag,
+    )
+
+FILE_MODE_DEFAULTS: Dict[str, Any] = {
+    "buffer_seconds": 8.0,
+    "analysis_fps": 10.0,
+    "auto_tune": True,
+    "deterministic": True,
+}
 
 
 def _update_best_face_during_carry(
@@ -171,27 +210,54 @@ def main():
     )
     args = ap.parse_args()
 
-    cfg = PipelineConfig(
-        buffer_seconds=args.buffer,
-        analysis_fps=args.analysis_fps,
-        pre_seconds=args.pre,
-        post_seconds=args.post,
-        camera_id=args.camera_id,
-        post_backend_url=args.post_backend or None,
-        auto_tune=True,
+    # P0-B: file mode shares upload guarantees — CFR + process determinism.
+    # Live camera / RTSP skip CFR (no file) but still honor MOTARED_DETERMINISTIC.
+    from inference.runtime_determinism import (
+        configure_determinism,
+        determinism_enabled_from_env,
     )
-    pipe = InferencePipeline(cfg)
-    if args.source == "file" and args.video:
+
+    file_mode = args.source == "file" and bool(args.video)
+    deterministic = determinism_enabled_from_env()
+    if file_mode or deterministic:
+        configure_determinism(0)
+        deterministic = True
+
+    video_path = args.video
+    if file_mode:
         try:
-            pipe.event_detector.learning_video = os.path.basename(args.video)
-        except Exception:
-            pass
+            from backend.services.video_normalizer import ensure_cfr_source
+            import tempfile
+
+            _cfr_dir = tempfile.mkdtemp(prefix="motared_cli_cfr_")
+            video_path = str(
+                ensure_cfr_source(Path(args.video), _cfr_dir, stem="source_CFR")
+            )
+            print(f"CFR normalized: {args.video} -> {video_path}")
+        except Exception as exc:
+            print(f"WARN: CFR normalize skipped ({exc}); using raw file", file=sys.stderr)
+            video_path = args.video
+
+    cfg = build_shared_file_pipeline(
+        analysis_fps=args.analysis_fps,
+        camera_id=args.camera_id,
+        deterministic=deterministic,
+        post_backend_url=args.post_backend or None,
+        learning_tag=(os.path.basename(args.video) if file_mode else None),
+    )
+    if not file_mode:
+        # Live loop keeps the operator's buffer/pre/post window; file mode
+        # stays on the shared production defaults above.
+        cfg.buffer_seconds = args.buffer
+        cfg.pre_seconds = args.pre
+        cfg.post_seconds = args.post
+    pipe = InferencePipeline(cfg)
 
     live_reader: Optional[LiveCameraReader] = None
     src = None
 
     if args.source == "file":
-        src = VideoFileSource(args.video)
+        src = VideoFileSource(video_path)
         if not src.open():
             print(f"ERROR: cannot open source ({args.source})", file=sys.stderr)
             sys.exit(1)

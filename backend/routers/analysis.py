@@ -9,9 +9,10 @@ import os
 import shutil
 import threading
 import time
+import traceback
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
@@ -87,13 +88,64 @@ def _compact_detector_event(event) -> dict:
 
 
 def _fit_report_json(report: dict, max_chars: int = 3900) -> str:
-    """Serialize report while keeping the legacy varchar(4096) column safe."""
+    """Serialize report while keeping the legacy varchar(4096) column safe.
+
+    Order matters: the FIRST thing we must never lose is the failure/stage
+    telemetry, because a truncated report that drops ``stages`` /
+    ``pipeline_telemetry`` makes the dashboard fall back to "Stage 1 —
+    Video Input FAILED" even when the real failure was Stage 9 (temporal
+    event detection). Compact the stage matrix BEFORE falling back to the
+    minimal payload.
+    """
     def _dump() -> str:
         return json.dumps(report, ensure_ascii=False)
 
     text = _dump()
     if len(text) <= max_chars:
         return text
+
+    # Preserve the stage lifecycle in a compact form (id/order/status/error).
+    telemetry = report.get("pipeline_telemetry") if isinstance(report, dict) else None
+    raw_stages = report.get("stages") if isinstance(report, dict) else None
+    if isinstance(raw_stages, list) or isinstance(raw_stages, dict):
+        items = (
+            raw_stages
+            if isinstance(raw_stages, list)
+            else [dict(v, id=k) if isinstance(v, dict) else {"id": k} for k, v in raw_stages.items()]
+        )
+        report["stages"] = [
+            {
+                "id": it.get("id"),
+                "order": it.get("order"),
+                "status": it.get("status"),
+                "error": it.get("error"),
+            }
+            for it in items
+            if isinstance(it, dict)
+        ]
+        if isinstance(telemetry, dict):
+            report["pipeline_telemetry"] = {
+                k: telemetry.get(k)
+                for k in (
+                    "current_stage",
+                    "current_stage_id",
+                    "current_stage_status",
+                    "current_step",
+                    "stage_step",
+                    "stage_name_display",
+                    "total_stages",
+                    "last_successful_stage",
+                    "failed_stage_id",
+                    "status",
+                    "processed_frames",
+                    "total_frames",
+                    "error_message",
+                    "progress_pct",
+                )
+            }
+        text = _dump()
+        if len(text) <= max_chars:
+            return text
 
     detector = report.get("event_detector")
     if isinstance(detector, dict):
@@ -122,6 +174,9 @@ def _fit_report_json(report: dict, max_chars: int = 3900) -> str:
         "source": report.get("source"),
         "confirmed_events": report.get("confirmed_events", 0),
         "no_candidate_reason": report.get("no_candidate_reason"),
+        # Keep stage attribution even in the last-resort payload.
+        "pipeline_telemetry": report.get("pipeline_telemetry"),
+        "stages": report.get("stages"),
         "event_detector": {
             "summary": report.get("event_detector", {}).get("summary", {}) if isinstance(report.get("event_detector"), dict) else {},
             "truncated": True,
@@ -130,7 +185,15 @@ def _fit_report_json(report: dict, max_chars: int = 3900) -> str:
     text = json.dumps(minimal, ensure_ascii=False)
     if len(text) <= max_chars:
         return text
-    return json.dumps({"truncated": True, "event_detector": {"summary": {}}}, ensure_ascii=False)
+    return json.dumps(
+        {
+            "truncated": True,
+            "pipeline_telemetry": report.get("pipeline_telemetry"),
+            "stages": report.get("stages"),
+            "event_detector": {"summary": {}},
+        },
+        ensure_ascii=False,
+    )
 
 
 def _current_detector_state(detector) -> str:
@@ -271,6 +334,162 @@ PIPELINE_STAGES = [
     {"id": "database_persistence", "name": "11. DATABASE", "order": 11},
     {"id": "api_dashboard", "name": "12. API / DASHBOARD", "order": 12},
 ]
+
+
+def _write_failure_forensics(
+    *,
+    job_id: int,
+    video_name: Optional[str],
+    stage_id: str,
+    exc: BaseException,
+    traceback_text: str,
+    frame_idx: Optional[int],
+    timestamp: Optional[float],
+    source_fps: Optional[float],
+    frame: Any = None,
+    persons: Any = None,
+    objects: Any = None,
+    detector: Any = None,
+    pair_states: Optional[List[dict]] = None,
+) -> Dict[str, Any]:
+    """Persist a real crash snapshot (JSON + annotated failure frame).
+
+    Called ONLY from the analysis job's unexpected-exception handler. It never
+    invents data: when the frame object is unavailable (crash before decode,
+    or the frame was released) the image is skipped and the JSON records
+    ``frame_image: null`` with ``nearest_frame: false``.
+    """
+    out: Dict[str, Any] = {
+        "job_id": job_id,
+        "video": video_name,
+        "stage": stage_id,
+        "exception_type": type(exc).__name__,
+        "exception": str(exc),
+        "traceback": traceback_text,
+        "frame_index": frame_idx,
+        "timestamp_sec": None if timestamp is None else round(float(timestamp), 3),
+        "source_fps": source_fps,
+        "detector": None,
+        "entities": _entity_forensics(persons, objects),
+        "pairs": pair_states or [],
+        "frame_image": None,
+        "nearest_frame": False,
+    }
+
+    if detector is not None:
+        try:
+            cfg = getattr(detector, "config", None)
+            thresholds = None
+            if cfg is not None:
+                thresholds = {
+                    k: getattr(cfg, k)
+                    for k in dir(cfg)
+                    if not k.startswith("_")
+                    and isinstance(getattr(cfg, k, None), (int, float, str, type(None)))
+                }
+            out["detector"] = {
+                "type": type(detector).__name__,
+                "active_thresholds": thresholds,
+            }
+        except Exception as exc2:  # diagnostics must never raise
+            out["detector"] = {"error": f"context capture failed: {exc2}"}
+
+    try:
+        dbg_dir = REPO_ROOT / "evidence_store" / "debug" / f"job_{job_id}"
+        dbg_dir.mkdir(parents=True, exist_ok=True)
+        if frame is not None:
+            try:
+                from littering_event_detector import annotate_detector_frame
+
+                annotated = annotate_detector_frame(
+                    frame,
+                    list(persons or []),
+                    list(objects or []),
+                    detector=detector,
+                )
+                try:
+                    import cv2  # type: ignore
+
+                    banner = (
+                        f"FAILED stage={stage_id} frame={frame_idx} "
+                        f"t={out['timestamp_sec']}s {type(exc).__name__}"
+                    )
+                    cv2.putText(
+                        annotated, banner, (10, max(20, annotated.shape[0] - 40)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2,
+                    )
+                except Exception:
+                    pass
+                img_path = dbg_dir / "failure_frame.jpg"
+                wrote = False
+                try:
+                    import cv2  # type: ignore
+
+                    wrote = bool(cv2.imwrite(str(img_path), annotated))
+                except Exception:
+                    wrote = False
+                out["frame_image"] = str(img_path) if wrote else None
+                out["nearest_frame"] = not wrote
+            except Exception as exc3:
+                out["frame_image_error"] = str(exc3)
+        (dbg_dir / "failure_context.json").write_text(
+            json.dumps(out, indent=2, ensure_ascii=False, default=str), encoding="utf-8"
+        )
+        out["context_path"] = str(dbg_dir / "failure_context.json")
+    except Exception as exc4:
+        out["forensics_error"] = str(exc4)
+
+    log.error(
+        "Job %s FAILURE FORENSICS stage=%s frame=%s t=%ss err=%s: %s",
+        job_id, stage_id, frame_idx, out["timestamp_sec"], type(exc).__name__, exc,
+    )
+    return out
+
+
+def _pair_forensics(detector: Any) -> List[dict]:
+    """Snapshot every live FSM pair (ids, state, key measurements)."""
+    rows: List[dict] = []
+    try:
+        for (pid, bid), mem in dict(getattr(detector, "_pairs", {}) or {}).items():
+            rows.append({
+                "person_track_id": int(pid),
+                "bag_track_id": int(bid),
+                "bag_uid": getattr(mem, "bag_uid", None),
+                "person_uid": getattr(mem, "person_uid", None),
+                "state": getattr(getattr(mem, "state", None), "value", str(getattr(mem, "state", None))),
+                "carried_frames": getattr(mem, "carried_frames", None),
+                "stationary_frames": getattr(mem, "stationary_frames", None),
+                "departed_frames": getattr(mem, "departed_frames", None),
+                "ground_evidence_frames": getattr(mem, "ground_evidence_frames", None),
+                "bin_zone_frames": getattr(mem, "bin_zone_frames", None),
+                "max_post_release_norm_distance": getattr(mem, "max_post_release_norm_distance", None),
+                "separated_frames": getattr(mem, "separated_frames", None),
+                "aidm_separated": getattr(mem, "aidm_separated", None),
+                "ever_aidm_attached": getattr(mem, "ever_aidm_attached", None),
+                "release_frame": getattr(mem, "release_frame", None),
+                "ground_frame": getattr(mem, "ground_frame", None),
+            })
+    except Exception:
+        pass
+    return rows
+
+
+def _entity_forensics(persons: Any, objects: Any) -> Dict[str, Any]:
+    """Snapshot active person/object tracks with bboxes, class, confidence, UID."""
+    def _rows(items):
+        rows = []
+        for t in list(items or []):
+            rows.append({
+                "track_id": int(getattr(t, "track_id", -1)),
+                "bbox": list(getattr(t, "bbox", []) or []),
+                "confidence": getattr(t, "confidence", None),
+                "class_name": getattr(t, "class_name", None),
+                "source": getattr(t, "source", None),
+                "object_uid": getattr(t, "object_uid", None),
+            })
+        return rows
+
+    return {"persons": _rows(persons), "objects": _rows(objects)}
 
 
 class PipelineStageTracker:
@@ -759,32 +978,22 @@ def _run_video_analysis_job(job_id: int):
         movenet = MovenetPose()
         movenet.load()
 
-        pipeline_cfg = PipelineConfig(
-            buffer_seconds=8.0,
+        from scripts.run_pipeline import build_shared_file_pipeline
+
+        pipeline_cfg = build_shared_file_pipeline(
+            # P0-B: Path A (upload) shares ONE file-mode loop with Path B
+            # (scripts/run_pipeline.py --source file): CFR upstream +
+            # configure_determinism + identical AdaptiveEventDetector defaults.
+            # Learning is recorded per uploaded video at finalize() below;
+            # deterministic runs use the P0-A pin, never live learning.json.
             analysis_fps=8.0,
             camera_id=str(cam.id),
-            # The job runs INSIDE the backend process and persists events +
-            # evidence directly to the DB below (finalize -> verify -> create
-            # event -> store files). An HTTP self-call would be fragile and
-            # is unnecessary here. Live-camera mode keeps the HTTP path.
-            post_backend_url=None,
-            # Adaptive self-tuning: concurrent tier ladder + online learning
-            # (adaptive_tuner.py). Learning is recorded per uploaded video at
-            # finalize() (below) into learning/learning.json; the tier ladder
-            # rescues threshold-brittle videos WITHOUT touching events that
-            # the production config already confirms.
-            auto_tune=True,
-            # Section 3 — freeze learning.json writes so re-running the same
-            # upload cannot mutate tier thresholds between runs.
             deterministic=deterministic,
+            post_backend_url=None,
+            learning_tag=job.original_filename,
         )
         pipe = InferencePipeline(pipeline_cfg)
         pipe.event_detector.reset()
-        # Attribute the learning record to the uploaded video file.
-        try:
-            pipe.event_detector.learning_video = job.original_filename
-        except Exception:
-            pass
 
         analyzed_path = analysis_dir / "analyzed.mp4"
         writer: Optional[cv2.VideoWriter] = None
@@ -828,7 +1037,23 @@ def _run_video_analysis_job(job_id: int):
         _last_persons: list = []
         _last_objects: list = []
         _last_event = None
+        # Unconditional pre-loop binding: `persons` / `objects` are read by the
+        # cancellation and exception paths below. Previously they were only
+        # bound inside the loop body, so an early cancel/error referenced a
+        # name that existed on some paths only (the `sep_floor` NameError
+        # class, IMG_5291 / job 43). Declaring them here makes their existence
+        # independent of how far the loop got.
+        persons: List[Any] = []
+        objects: List[Any] = []
+        last_failure_frame: Any = None
+        last_pkt_timestamp: float = 0.0
         for pkt in source:
+            # Forensics anchors: the exact frame + timestamp currently being
+            # processed. On an unexpected exception the handler reads these to
+            # capture a REAL snapshot (never a synthesized placeholder image).
+            if pkt.frame is not None:
+                last_failure_frame = pkt.frame
+            last_pkt_timestamp = float(pkt.timestamp)
             if is_job_cancellation_requested(job.id):
                 log.info("Job %s: Cancellation requested at frame %s. Stopping gracefully.", job.id, frame_idx)
                 stage_tracker.cancel(reason="Analysis stopped by user cancellation request", frame_idx=frame_idx)
@@ -847,7 +1072,7 @@ def _run_video_analysis_job(job_id: int):
                     fps=source.fps,
                     processing_fps=job.processing_fps,
                     duration_sec=source.duration_seconds,
-                    active_persons_count=len(persons) if 'persons' in locals() else 0,
+                    active_persons_count=len(persons),
                     peak_concurrent_people=peak_concurrent_people,
                     unique_persons_count=unique_persons,
                     total_person_track_ids=len(detected_persons_set),
@@ -1461,6 +1686,28 @@ def _run_video_analysis_job(job_id: int):
                 str(e),
                 frame_idx=frame_idx if 'frame_idx' in locals() else None,
             )
+            try:
+                # Failure forensics: JSON + annotated failure frame (real frame
+                # only; labelled nearest_frame when it could not be written).
+                _write_failure_forensics(
+                    job_id=job.id if job else job_id,
+                    video_name=getattr(job, "original_filename", None) if job else None,
+                    stage_id=stage_tracker.current_stage_id,
+                    exc=e,
+                    traceback_text=traceback.format_exc(),
+                    frame_idx=frame_idx if 'frame_idx' in locals() else None,
+                    timestamp=locals().get("last_pkt_timestamp"),
+                    source_fps=getattr(locals().get("source"), "fps", None),
+                    frame=locals().get("last_failure_frame"),
+                    persons=locals().get("persons"),
+                    objects=locals().get("objects"),
+                    detector=getattr(pipe, "event_detector", None) if 'pipe' in locals() else None,
+                    pair_states=_pair_forensics(
+                        getattr(pipe, "event_detector", None) if 'pipe' in locals() else None
+                    ),
+                )
+            except Exception:
+                log.exception("Job %s: failure forensics capture failed", job_id)
             failed_report = stage_tracker.build_telemetry(
                 job_id=job.id if job else job_id,
                 status="failed",

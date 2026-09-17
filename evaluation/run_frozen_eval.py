@@ -63,10 +63,10 @@ def _run_clip(path: Path) -> Tuple[bool, List[float], float, float]:
     from inference.capture.camera_source import VideoFileSource
     from inference.detection.novelty_detector import NoveltyConfig, NoveltyDetector
     from inference.detection.yolo_detector import YoloDetector
-    from inference.pipeline import InferencePipeline, PipelineConfig
+    from inference.pipeline import InferencePipeline
     from inference.pose.movenet_pose import MovenetPose
     from inference.tracking.bytetrack_tracker import BytetrackTracker
-    from scripts.run_pipeline import build_tracks_real
+    from scripts.run_pipeline import build_shared_file_pipeline, build_tracks_real
     import tempfile
 
     configure_determinism(0)
@@ -86,14 +86,14 @@ def _run_clip(path: Path) -> Tuple[bool, List[float], float, float]:
         movenet = MovenetPose()
         movenet.load()
 
+        # P0-B: frozen gate measures the SAME shared file-mode loop as
+        # upload (Path A) and CLI file mode (Path B) — not a third variant.
         pipe = InferencePipeline(
-            PipelineConfig(
-                buffer_seconds=8.0,
+            build_shared_file_pipeline(
                 analysis_fps=8.0,
                 camera_id="frozen-eval",
-                post_backend_url=None,
-                auto_tune=True,
                 deterministic=True,
+                learning_tag=path.name,
             )
         )
         pipe.event_detector.reset()
@@ -111,6 +111,8 @@ def _run_clip(path: Path) -> Tuple[bool, List[float], float, float]:
                 run_pose=run_pose, nov=nov,
             )
             pipe.process_frame(pkt.frame, pkt.timestamp, persons, objects)
+            if n % 200 == 0:
+                print(f"  ... {n} frames @ {float(pkt.timestamp):.1f}s", flush=True)
         source.release()
         pipe.finalize(last_ts)
         elapsed = max(1e-6, time.time() - t0)

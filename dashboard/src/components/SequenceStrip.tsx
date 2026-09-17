@@ -166,10 +166,14 @@ function SequenceCard({
           <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 p-2 text-center text-slate-500 bg-slate-950/60">
             <ImageOff className="h-6 w-6 text-slate-600" />
             <span className="mono text-[10px] font-bold text-slate-400 uppercase">
-              {step.imagePath && loadError ? "EVIDENCE NOT AVAILABLE" : "STATE VERIFIED"}
+              {step.imagePath && loadError
+                ? "EVIDENCE NOT AVAILABLE"
+                : "NO FRAME CROP"}
             </span>
             <span className="text-[9px] text-slate-600">
-              {step.imagePath && loadError ? "Image unavailable" : "Temporal check passed"}
+              {step.imagePath && loadError
+                ? "Image unavailable"
+                : "Milestone crop not captured"}
             </span>
           </div>
         )}
@@ -182,7 +186,7 @@ function SequenceCard({
           <span>{timingLabel ?? "—"}</span>
         </div>
         <span className="mono text-[9px] uppercase font-bold text-slate-500 group-hover:text-emerald-400 transition-colors">
-          {hasImage ? "Click to Zoom →" : "Verified State"}
+          {hasImage ? "Click to Zoom →" : "Crop missing"}
         </span>
       </div>
     </figure>

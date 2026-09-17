@@ -328,49 +328,48 @@ export function ForensicAssetPanel({
               </div>
             </div>
 
-            {/* FSM Behavioral Status Checklist */}
+            {/* FSM Behavioral Status Checklist — P2-H: no fake VERIFIED */}
             <div className="rounded-xl border border-slate-800 bg-slate-950/80 p-4 space-y-2.5">
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
                 <span>Temporal Behavior Verification</span>
-                <span className="text-emerald-400 text-[10px]">ALL GATES PASSED</span>
+                {([frames.carry_start, frames.release, frames.ground, frames.departure].every(
+                  (f) => f != null
+                )) ? (
+                  <span className="text-emerald-400 text-[10px]">ALL GATES TIMED</span>
+                ) : (
+                  <span className="text-amber-400 text-[10px]">MILESTONES INCOMPLETE</span>
+                )}
               </div>
               <div className="space-y-1.5 text-xs">
-                <div className="flex items-center justify-between rounded bg-slate-900/90 px-2.5 py-1.5 border border-slate-800/60">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                    <span className="text-slate-300">1. Handheld Carry</span>
+                {(
+                  [
+                    ["1. Handheld Carry", frames.carry_start],
+                    ["2. Separation / Release", frames.release],
+                    ["3. Ground Deposit & Settle", frames.ground],
+                    ["4. Departure Without Regrab", frames.departure],
+                  ] as const
+                ).map(([label, frame]) => (
+                  <div
+                    key={label}
+                    className="flex items-center justify-between rounded bg-slate-900/90 px-2.5 py-1.5 border border-slate-800/60"
+                  >
+                    <div className="flex items-center gap-2">
+                      {frame != null ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                      ) : (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-slate-600" />
+                      )}
+                      <span className="text-slate-300">{label}</span>
+                    </div>
+                    <span
+                      className={`mono text-[10px] ${
+                        frame != null ? "text-slate-400" : "text-amber-400"
+                      }`}
+                    >
+                      {frame != null ? `f${frame}` : "UNAVAILABLE"}
+                    </span>
                   </div>
-                  <span className="mono text-[10px] text-slate-400">
-                    {frames.carry_start != null ? `f${frames.carry_start}` : "VERIFIED"}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between rounded bg-slate-900/90 px-2.5 py-1.5 border border-slate-800/60">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                    <span className="text-slate-300">2. Separation / Release</span>
-                  </div>
-                  <span className="mono text-[10px] text-slate-400">
-                    {frames.release != null ? `f${frames.release}` : "VERIFIED"}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between rounded bg-slate-900/90 px-2.5 py-1.5 border border-slate-800/60">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                    <span className="text-slate-300">3. Ground Deposit & Settle</span>
-                  </div>
-                  <span className="mono text-[10px] text-slate-400">
-                    {frames.ground != null ? `f${frames.ground}` : "VERIFIED"}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between rounded bg-slate-900/90 px-2.5 py-1.5 border border-slate-800/60">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                    <span className="text-slate-300">4. Departure Without Regrab</span>
-                  </div>
-                  <span className="mono text-[10px] text-slate-400">
-                    {frames.departure != null ? `f${frames.departure}` : "VERIFIED"}
-                  </span>
-                </div>
+                ))}
               </div>
             </div>
           </div>
